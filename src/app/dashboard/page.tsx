@@ -249,17 +249,17 @@ export default function DashboardPage() {
           </div>
         )}
 
-
-        <Card className="shadow-lg overflow-hidden glassmorphic">
-          <CardHeader>
-             <CardTitle className="text-2xl font-semibold flex items-center"><BarChartHorizontalBig className="h-6 w-6 mr-2 text-primary" />Hiring Analytics (Mock)</CardTitle>
-            <CardDescription>Visualize your recruitment performance.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-64 flex items-center justify-center">
-             <Image src="https://placehold.co/600x300.png" alt="Mock hiring analytics chart" width={600} height={300} className="rounded-md opacity-70" data-ai-hint="chart graph data" />
-          </CardContent>
-        </Card>
-
+        {user.role === 'recruiter' && (
+          <Card className="shadow-lg overflow-hidden glassmorphic">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold flex items-center"><BarChartHorizontalBig className="h-6 w-6 mr-2 text-primary" />Hiring Analytics (Mock)</CardTitle>
+              <CardDescription>Visualize your recruitment performance.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-64 flex items-center justify-center">
+              <Image src="https://placehold.co/600x300.png" alt="Mock hiring analytics chart" width={600} height={300} className="rounded-md opacity-70" data-ai-hint="chart graph data" />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
