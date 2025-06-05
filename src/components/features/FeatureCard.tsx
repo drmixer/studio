@@ -1,6 +1,7 @@
 "use client";
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useInView } from 'react-intersection-observer';
 import { cn } from '@/lib/utils';
 
