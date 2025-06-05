@@ -1,9 +1,13 @@
+
+"use client";
+
 import Link from 'next/link';
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import { DarkModeToggle } from '@/components/shared/DarkModeToggle';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState } from 'react';
 
 const navItems = [
   { href: '/', label: 'Home' },
@@ -13,6 +17,8 @@ const navItems = [
 ];
 
 export default function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
@@ -34,7 +40,7 @@ export default function Header() {
           </Button>
           <DarkModeToggle />
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-6 w-6" />
@@ -48,12 +54,15 @@ export default function Header() {
                       key={item.label}
                       href={item.href}
                       className="text-lg font-medium text-foreground hover:text-primary transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
                     >
                       {item.label}
                     </Link>
                   ))}
                   <Button asChild className="w-full btn-gradient mt-4">
-                    <Link href="/contact">Request Access</Link>
+                    <Link href="/contact" onClick={() => setMobileMenuOpen(false)}>
+                      Request Access
+                    </Link>
                   </Button>
                 </nav>
               </SheetContent>
