@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Github, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import React, { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +30,7 @@ export default function AuthPage() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (authError) {
       toast({
         title: "Authentication Error",
