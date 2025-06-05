@@ -6,7 +6,7 @@ import Image from "next/image";
 
 export function HeroSection() {
   return (
-    <section className="relative py-20 md:py-32 bg-gradient-to-br from-primary via-blue-600 to-accent text-primary-foreground overflow-hidden">
+    <section className="relative py-20 md:py-32 bg-gradient-to-br from-background via-primary/10 to-accent/10 text-foreground overflow-hidden">
       <div className="absolute inset-0 opacity-10 pointer-events-none">
         {/* Subtle background pattern or texture if desired */}
       </div>
@@ -16,14 +16,14 @@ export function HeroSection() {
           <br />
           <span className="opacity-90">One <span className="text-gradient-primary">commit</span> at a time.</span>
         </h1>
-        <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-slide-up opacity-0 animation-delay-300 drop-shadow-sm">
+        <p className="text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-10 animate-slide-up opacity-0 animation-delay-300 drop-shadow-sm">
           GitTalent leverages GitHub insights and AI to help you discover, vet, and hire exceptional software developers faster than ever.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 animate-slide-up opacity-0 animation-delay-600">
-          <Button size="lg" asChild className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-lg transform hover:scale-105 transition-transform duration-300">
+          <Button size="lg" asChild className="btn-gradient shadow-lg transform hover:scale-105 transition-transform duration-300">
             <Link href="/contact">Request Access</Link>
           </Button>
-          <Button size="lg" variant="outline" asChild className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 shadow-lg transform hover:scale-105 transition-transform duration-300">
+          <Button size="lg" variant="outline" asChild className="shadow-lg transform hover:scale-105 transition-transform duration-300">
             <Link href="#features">See How It Works</Link>
           </Button>
         </div>
