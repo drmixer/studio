@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon } from "lucide-react";
+import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon, Bot } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { candidateShortlisting, type CandidateShortlistingOutput } from "@/ai/flows/candidate-shortlisting";
+import { CandidateCard } from "./components/CandidateCard";
 
 export default function DashboardPage() {
   const { user, loading, updateUserGitHubProfile } = useAuth();
@@ -22,6 +24,11 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [githubUrl, setGithubUrl] = useState(user?.githubProfileUrl || "");
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
+
+  const [selfAnalysisResult, setSelfAnalysisResult] = useState<CandidateShortlistingOutput | null>(null);
+  const [isAnalyzingSelf, setIsAnalyzingSelf] = useState(false);
+  const [selfAnalysisError, setSelfAnalysisError] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!loading && !user) {
@@ -57,6 +64,9 @@ export default function DashboardPage() {
         title: "GitHub Profile Linked!",
         description: "Your GitHub profile URL has been saved.",
       });
+      // Reset self-analysis if URL changes
+      setSelfAnalysisResult(null);
+      setSelfAnalysisError(null);
     } catch (error) {
       toast({
         title: "Linking Failed",
@@ -65,6 +75,29 @@ export default function DashboardPage() {
       });
     } finally {
       setIsLinkingGithub(false);
+    }
+  };
+
+  const handleAnalyzeSelfProfile = async () => {
+    if (!user?.githubProfileUrl) {
+      toast({ title: "No GitHub Profile Linked", description: "Please link your GitHub profile first.", variant: "destructive" });
+      return;
+    }
+    setIsAnalyzingSelf(true);
+    setSelfAnalysisResult(null);
+    setSelfAnalysisError(null);
+    toast({ title: "Analyzing Your Profile...", description: "This may take a moment." });
+
+    try {
+      const output = await candidateShortlisting({ githubProfileUrl: user.githubProfileUrl });
+      setSelfAnalysisResult(output);
+      toast({ title: "Analysis Complete!", description: "Your GitHub profile analysis is ready." });
+    } catch (e: any) {
+      const errorMessage = e.message || "Failed to analyze your profile. Please try again.";
+      setSelfAnalysisError(errorMessage);
+      toast({ title: "Analysis Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsAnalyzingSelf(false);
     }
   };
 
@@ -152,40 +185,68 @@ export default function DashboardPage() {
         )}
         
         {user.role === 'developer' && (
-           <Card className="shadow-lg overflow-hidden glassmorphic">
-             <CardHeader>
-                <CardTitle className="text-2xl font-semibold flex items-center"><Github className="h-6 w-6 mr-2 text-primary" /> Your Developer Profile</CardTitle>
-                <CardDescription>Manage your GitTalent profile and showcase your skills by linking your GitHub account.</CardDescription>
-             </CardHeader>
-             <CardContent>
-                <form onSubmit={handleLinkGitHub} className="space-y-4">
-                  <div>
-                    <Label htmlFor="github-profile-url">GitHub Profile URL</Label>
-                    <Input 
-                      id="github-profile-url" 
-                      type="url" 
-                      placeholder="https://github.com/yourusername" 
-                      value={githubUrl}
-                      onChange={(e) => setGithubUrl(e.target.value)}
-                      className="mt-1"
-                      disabled={isLinkingGithub}
-                    />
-                  </div>
-                  {user.githubProfileUrl && (
-                    <p className="text-sm text-muted-foreground">
-                      Current linked profile: <a href={user.githubProfileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.githubProfileUrl}</a>
-                    </p>
-                  )}
-                  <Button type="submit" className="btn-gradient" disabled={isLinkingGithub}>
-                    {isLinkingGithub ? <Loader2 className="animate-spin mr-2" /> : <LinkIcon className="mr-2 h-4 w-4" />}
-                    {user.githubProfileUrl ? "Update GitHub Profile" : "Link GitHub Profile"}
-                  </Button>
-                </form>
-                <p className="mt-6 text-sm text-muted-foreground">
-                  Linking your GitHub profile allows GitTalent to showcase your projects, contributions, and skills to potential recruiters.
-                </p>
-             </CardContent>
-           </Card>
+          <div className="space-y-8">
+            <Card className="shadow-lg overflow-hidden glassmorphic">
+              <CardHeader>
+                  <CardTitle className="text-2xl font-semibold flex items-center"><Github className="h-6 w-6 mr-2 text-primary" /> Your Developer Profile</CardTitle>
+                  <CardDescription>Manage your GitTalent profile and showcase your skills by linking your GitHub account.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <form onSubmit={handleLinkGitHub} className="space-y-4">
+                    <div>
+                      <Label htmlFor="github-profile-url">GitHub Profile URL</Label>
+                      <Input 
+                        id="github-profile-url" 
+                        type="url" 
+                        placeholder="https://github.com/yourusername" 
+                        value={githubUrl}
+                        onChange={(e) => setGithubUrl(e.target.value)}
+                        className="mt-1"
+                        disabled={isLinkingGithub || isAnalyzingSelf}
+                      />
+                    </div>
+                    {user.githubProfileUrl && (
+                      <p className="text-sm text-muted-foreground">
+                        Current linked profile: <a href={user.githubProfileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.githubProfileUrl}</a>
+                      </p>
+                    )}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button type="submit" className="btn-gradient" disabled={isLinkingGithub || isAnalyzingSelf}>
+                        {isLinkingGithub ? <Loader2 className="animate-spin mr-2" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+                        {user.githubProfileUrl ? "Update GitHub Profile" : "Link GitHub Profile"}
+                        </Button>
+                        {user.githubProfileUrl && (
+                        <Button type="button" variant="outline" onClick={handleAnalyzeSelfProfile} disabled={isAnalyzingSelf || isLinkingGithub}>
+                            {isAnalyzingSelf ? <Loader2 className="animate-spin mr-2" /> : <Bot className="mr-2 h-4 w-4" />}
+                            Analyze My Profile
+                        </Button>
+                        )}
+                    </div>
+                  </form>
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    Linking your GitHub profile allows GitTalent to showcase your projects, contributions, and skills to potential recruiters and get an AI analysis of your public profile.
+                  </p>
+              </CardContent>
+            </Card>
+
+            {selfAnalysisError && !isAnalyzingSelf && (
+              <Card className="border-destructive bg-destructive/10">
+                <CardHeader>
+                  <CardTitle className="text-destructive text-lg">Profile Analysis Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-destructive">{selfAnalysisError}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {selfAnalysisResult && !isAnalyzingSelf && user.githubProfileUrl && (
+              <div className="animate-fade-in">
+                <h3 className="text-xl font-semibold mb-4 text-gradient-primary">Your GitHub Profile Analysis</h3>
+                <CandidateCard {...selfAnalysisResult} githubProfileUrl={user.githubProfileUrl} />
+              </div>
+            )}
+          </div>
         )}
 
 
@@ -203,3 +264,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
