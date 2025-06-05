@@ -5,11 +5,21 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface Project {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+}
+
 export interface User {
   id: string;
   email: string | null;
   role: 'developer' | 'recruiter';
-  githubProfileUrl?: string | null; // Added field for GitHub profile URL
+  githubProfileUrl?: string | null;
+  projects?: Project[];
+  skills?: string[];
+  bio?: string;
 }
 
 interface AuthContextType {
@@ -19,7 +29,7 @@ interface AuthContextType {
   signIn: (email_address: string, pass: string) => Promise<void>;
   signUp: (email_address: string, pass: string, role: 'developer' | 'recruiter') => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserGitHubProfile: (url: string) => Promise<void>; // Added function to update GitHub profile
+  updateUserProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,7 +65,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         id: 'mock-user-id-' + email.split('@')[0],
         email,
         role: email === "rec@example.com" ? 'recruiter' : 'developer',
-        githubProfileUrl: email === "dev@example.com" ? "https://github.com/mockdev" : null, // Example pre-filled
+        githubProfileUrl: email === "dev@example.com" ? "https://github.com/mockdev" : null,
+        projects: email === "dev@example.com" ? [{id: '1', title: 'My Awesome Project', url: 'https://github.com/mockdev/awesome', description: 'This is a cool project.'}] : [],
+        skills: email === "dev@example.com" ? ['React', 'TypeScript', 'Node.js'] : [],
+        bio: email === "dev@example.com" ? 'Passionate developer building cool things.' : '',
       };
       setUser(mockUser);
       localStorage.setItem('gittalent-user', JSON.stringify(mockUser));
@@ -76,6 +89,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       role,
       githubProfileUrl: null,
+      projects: [],
+      skills: [],
+      bio: '',
     };
     setUser(newUser);
     localStorage.setItem('gittalent-user', JSON.stringify(newUser));
@@ -93,12 +109,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  const updateUserGitHubProfile = async (url: string) => {
+  const updateUserProfile = async (updates: Partial<User>) => {
     if (user) {
       setLoading(true);
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const updatedUser = { ...user, githubProfileUrl: url };
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       localStorage.setItem('gittalent-user', JSON.stringify(updatedUser));
       setLoading(false);
@@ -106,7 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading: loading || initialLoad, error, signIn, signUp, signOut, updateUserGitHubProfile }}>
+    <AuthContext.Provider value={{ user, loading: loading || initialLoad, error, signIn, signUp, signOut, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

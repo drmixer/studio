@@ -3,39 +3,59 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type User } from '@/contexts/AuthContext';
 import { CandidateShortlistingForm } from "./components/CandidateShortlistingForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon, Bot } from "lucide-react";
+import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon, Bot, Trash2, PlusCircle, BriefcaseBusiness, Lightbulb, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { candidateShortlisting, type CandidateShortlistingOutput } from "@/ai/flows/candidate-shortlisting";
 import { CandidateCard } from "./components/CandidateCard";
 
+interface Project {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+}
+
 export default function DashboardPage() {
-  const { user, loading, updateUserGitHubProfile } = useAuth();
+  const { user, loading, updateUserProfile } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  
+  // GitHub Profile States
   const [githubUrl, setGithubUrl] = useState(user?.githubProfileUrl || "");
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
-
   const [selfAnalysisResult, setSelfAnalysisResult] = useState<CandidateShortlistingOutput | null>(null);
   const [isAnalyzingSelf, setIsAnalyzingSelf] = useState(false);
   const [selfAnalysisError, setSelfAnalysisError] = useState<string | null>(null);
+
+  // Developer Profile States
+  const [bio, setBio] = useState(user?.bio || "");
+  const [skills, setSkills] = useState<string[]>(user?.skills || []);
+  const [currentSkill, setCurrentSkill] = useState("");
+  const [projects, setProjects] = useState<Project[]>(user?.projects || []);
+  const [currentProject, setCurrentProject] = useState<{title: string, url: string, description: string}>({title: "", url: "", description: ""});
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/auth');
     }
-    if (user?.githubProfileUrl) {
-      setGithubUrl(user.githubProfileUrl);
+    if (user) {
+      setGithubUrl(user.githubProfileUrl || "");
+      setBio(user.bio || "");
+      setSkills(user.skills || []);
+      setProjects(user.projects || []);
     }
   }, [user, loading, router]);
 
@@ -59,12 +79,11 @@ export default function DashboardPage() {
 
     setIsLinkingGithub(true);
     try {
-      await updateUserGitHubProfile(githubUrl);
+      await updateUserProfile({ githubProfileUrl: githubUrl });
       toast({
         title: "GitHub Profile Linked!",
         description: "Your GitHub profile URL has been saved.",
       });
-      // Reset self-analysis if URL changes
       setSelfAnalysisResult(null);
       setSelfAnalysisError(null);
     } catch (error) {
@@ -101,6 +120,99 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSaveBio = async () => {
+    if (!user) return;
+    setIsUpdatingProfile(true);
+    try {
+      await updateUserProfile({ bio });
+      toast({ title: "Bio Updated", description: "Your professional summary has been saved." });
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Could not save your bio. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleAddSkill = async () => {
+    if (!user || !currentSkill.trim()) return;
+    const newSkills = [...skills, currentSkill.trim()];
+    setSkills(newSkills); // Optimistic update
+    setCurrentSkill("");
+    setIsUpdatingProfile(true);
+    try {
+      await updateUserProfile({ skills: newSkills });
+      toast({ title: "Skill Added", description: `${currentSkill.trim()} has been added to your skills.` });
+    } catch (error) {
+      setSkills(skills); // Revert on error
+      toast({ title: "Update Failed", description: "Could not add skill. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleRemoveSkill = async (skillToRemove: string) => {
+    if (!user) return;
+    const oldSkills = [...skills];
+    const newSkills = skills.filter(skill => skill !== skillToRemove);
+    setSkills(newSkills); // Optimistic update
+    setIsUpdatingProfile(true);
+    try {
+      await updateUserProfile({ skills: newSkills });
+      toast({ title: "Skill Removed", description: `${skillToRemove} has been removed from your skills.` });
+    } catch (error) {
+      setSkills(oldSkills); // Revert on error
+      toast({ title: "Update Failed", description: "Could not remove skill. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+  
+  const handleAddProject = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || !currentProject.title.trim() || !currentProject.url.trim()) {
+      toast({ title: "Missing Information", description: "Project title and URL are required.", variant: "destructive"});
+      return;
+    }
+    try {
+        new URL(currentProject.url);
+    } catch (_) {
+        toast({ title: "Invalid URL", description: "Please enter a valid URL for your project.", variant: "destructive"});
+        return;
+    }
+
+    const newProject: Project = { ...currentProject, id: Date.now().toString() };
+    const newProjects = [...projects, newProject];
+    setProjects(newProjects); // Optimistic update
+    setCurrentProject({title: "", url: "", description: ""});
+    setIsUpdatingProfile(true);
+    try {
+      await updateUserProfile({ projects: newProjects });
+      toast({ title: "Project Added", description: `${newProject.title} has been added to your portfolio.` });
+    } catch (error) {
+      setProjects(projects.filter(p => p.id !== newProject.id)); // Revert on error
+      toast({ title: "Update Failed", description: "Could not add project. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleRemoveProject = async (projectIdToRemove: string) => {
+    if (!user) return;
+    const oldProjects = [...projects];
+    const newProjects = projects.filter(project => project.id !== projectIdToRemove);
+    setProjects(newProjects); // Optimistic update
+    setIsUpdatingProfile(true);
+    try {
+      await updateUserProfile({ projects: newProjects });
+      const removedProject = oldProjects.find(p => p.id === projectIdToRemove);
+      toast({ title: "Project Removed", description: `${removedProject?.title || 'Project'} has been removed.` });
+    } catch (error) {
+      setProjects(oldProjects); // Revert on error
+      toast({ title: "Update Failed", description: "Could not remove project. Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
 
   const mockCandidates = [
     { id: 1, name: "Alice Wonderland", stage: "New", summary: "Full-stack dev, React & Node.js expert.", avatar: "https://placehold.co/40x40.png?text=AW", aiHint: "woman avatar" },
@@ -115,6 +227,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const combinedLoading = loading || isLinkingGithub || isAnalyzingSelf || isUpdatingProfile;
 
   return (
     <div className="py-8 md:py-12 bg-secondary/30 min-h-screen">
@@ -188,8 +302,8 @@ export default function DashboardPage() {
           <div className="space-y-8">
             <Card className="shadow-lg overflow-hidden glassmorphic">
               <CardHeader>
-                  <CardTitle className="text-2xl font-semibold flex items-center"><Github className="h-6 w-6 mr-2 text-primary" /> Your Developer Profile</CardTitle>
-                  <CardDescription>Manage your GitTalent profile and showcase your skills by linking your GitHub account.</CardDescription>
+                  <CardTitle className="text-2xl font-semibold flex items-center"><Github className="h-6 w-6 mr-2 text-primary" /> Your GitHub Profile</CardTitle>
+                  <CardDescription>Link your GitHub to showcase your work and get AI-powered insights.</CardDescription>
               </CardHeader>
               <CardContent>
                   <form onSubmit={handleLinkGitHub} className="space-y-4">
@@ -202,7 +316,7 @@ export default function DashboardPage() {
                         value={githubUrl}
                         onChange={(e) => setGithubUrl(e.target.value)}
                         className="mt-1"
-                        disabled={isLinkingGithub || isAnalyzingSelf}
+                        disabled={combinedLoading}
                       />
                     </div>
                     {user.githubProfileUrl && (
@@ -211,12 +325,12 @@ export default function DashboardPage() {
                       </p>
                     )}
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="submit" className="btn-gradient" disabled={isLinkingGithub || isAnalyzingSelf}>
+                        <Button type="submit" className="btn-gradient" disabled={combinedLoading}>
                         {isLinkingGithub ? <Loader2 className="animate-spin mr-2" /> : <LinkIcon className="mr-2 h-4 w-4" />}
                         {user.githubProfileUrl ? "Update GitHub Profile" : "Link GitHub Profile"}
                         </Button>
                         {user.githubProfileUrl && (
-                        <Button type="button" variant="outline" onClick={handleAnalyzeSelfProfile} disabled={isAnalyzingSelf || isLinkingGithub}>
+                        <Button type="button" variant="outline" onClick={handleAnalyzeSelfProfile} disabled={combinedLoading}>
                             {isAnalyzingSelf ? <Loader2 className="animate-spin mr-2" /> : <Bot className="mr-2 h-4 w-4" />}
                             Analyze My Profile
                         </Button>
@@ -246,6 +360,109 @@ export default function DashboardPage() {
                 <CandidateCard {...selfAnalysisResult} githubProfileUrl={user.githubProfileUrl} showRecruiterActions={false} />
               </div>
             )}
+
+            {/* Professional Summary/Bio Card */}
+            <Card className="shadow-lg overflow-hidden glassmorphic">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center"><Sparkles className="h-5 w-5 mr-2 text-primary" /> Professional Summary</CardTitle>
+                <CardDescription>Craft a compelling bio to introduce yourself to recruiters.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  placeholder="Tell us about yourself, your experience, and what you're passionate about..."
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={5}
+                  className="mb-4"
+                  disabled={combinedLoading}
+                />
+                <Button onClick={handleSaveBio} disabled={combinedLoading} className="btn-gradient">
+                  {isUpdatingProfile && bio === user.bio ? <Loader2 className="animate-spin mr-2" /> : null} Save Bio
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Skills Card */}
+            <Card className="shadow-lg overflow-hidden glassmorphic">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center"><Lightbulb className="h-5 w-5 mr-2 text-primary" /> Skills & Expertise</CardTitle>
+                <CardDescription>Highlight your technical skills and areas of expertise.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <Input 
+                    placeholder="Add a skill (e.g., React)"
+                    value={currentSkill}
+                    onChange={(e) => setCurrentSkill(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                    disabled={combinedLoading}
+                  />
+                  <Button onClick={handleAddSkill} disabled={combinedLoading || !currentSkill.trim()} variant="outline">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Skill
+                  </Button>
+                </div>
+                {skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map(skill => (
+                      <Badge key={skill} variant="secondary" className="bg-primary/10 text-primary border-primary/20 text-sm py-1 px-3">
+                        {skill}
+                        <Button variant="ghost" size="icon" className="h-4 w-4 ml-2 p-0 text-primary/70 hover:text-destructive" onClick={() => handleRemoveSkill(skill)} disabled={combinedLoading}>
+                           <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-muted-foreground italic">No skills added yet.</p>}
+              </CardContent>
+            </Card>
+
+            {/* Projects Showcase Card */}
+            <Card className="shadow-lg overflow-hidden glassmorphic">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center"><BriefcaseBusiness className="h-5 w-5 mr-2 text-primary" /> Project Showcase</CardTitle>
+                <CardDescription>Showcase your best projects and contributions.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAddProject} className="space-y-4 mb-6 p-4 border rounded-md bg-card/50">
+                  <h4 className="font-medium">Add New Project</h4>
+                  <div>
+                    <Label htmlFor="projectTitle">Project Title</Label>
+                    <Input id="projectTitle" value={currentProject.title} onChange={(e) => setCurrentProject({...currentProject, title: e.target.value})} placeholder="Awesome Project Name" disabled={combinedLoading} required/>
+                  </div>
+                  <div>
+                    <Label htmlFor="projectUrl">Project URL</Label>
+                    <Input id="projectUrl" type="url" value={currentProject.url} onChange={(e) => setCurrentProject({...currentProject, url: e.target.value})} placeholder="https://github.com/your/project" disabled={combinedLoading} required/>
+                  </div>
+                  <div>
+                    <Label htmlFor="projectDescription">Description (Optional)</Label>
+                    <Textarea id="projectDescription" value={currentProject.description} onChange={(e) => setCurrentProject({...currentProject, description: e.target.value})} placeholder="A brief description of your project" disabled={combinedLoading}/>
+                  </div>
+                  <Button type="submit" disabled={combinedLoading || !currentProject.title.trim() || !currentProject.url.trim()} className="btn-gradient">
+                     <PlusCircle className="mr-2 h-4 w-4" /> Add Project
+                  </Button>
+                </form>
+
+                {projects.length > 0 ? (
+                  <div className="space-y-4">
+                    {projects.map(project => (
+                      <Card key={project.id} className="p-4 bg-card/70">
+                        <div className="flex justify-between items-start">
+                           <div>
+                            <a href={project.url} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold text-primary hover:underline">{project.title}</a>
+                            {project.description && <p className="text-sm text-muted-foreground mt-1">{project.description}</p>}
+                          </div>
+                          <Button variant="ghost" size="icon" className="text-destructive/70 hover:text-destructive" onClick={() => handleRemoveProject(project.id)} disabled={combinedLoading}>
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove project</span>
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : <p className="text-sm text-muted-foreground italic text-center">No projects added yet. Showcase your work!</p>}
+              </CardContent>
+            </Card>
+
           </div>
         )}
 
@@ -264,4 +481,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
