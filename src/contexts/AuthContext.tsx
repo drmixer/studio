@@ -9,6 +9,7 @@ export interface User {
   id: string;
   email: string | null;
   role: 'developer' | 'recruiter';
+  githubProfileUrl?: string | null; // Added field for GitHub profile URL
 }
 
 interface AuthContextType {
@@ -18,6 +19,7 @@ interface AuthContextType {
   signIn: (email_address: string, pass: string) => Promise<void>;
   signUp: (email_address: string, pass: string, role: 'developer' | 'recruiter') => Promise<void>;
   signOut: () => Promise<void>;
+  updateUserGitHubProfile: (url: string) => Promise<void>; // Added function to update GitHub profile
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +32,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Mock checking for persisted user session (e.g., from localStorage)
     try {
       const storedUser = localStorage.getItem('gittalent-user');
       if (storedUser) {
@@ -47,15 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, _pass: string) => {
     setLoading(true);
     setError(null);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Mock sign-in logic
     if (email === "user@example.com" || email === "dev@example.com" || email === "rec@example.com") {
       const mockUser: User = {
         id: 'mock-user-id-' + email.split('@')[0],
         email,
         role: email === "rec@example.com" ? 'recruiter' : 'developer',
+        githubProfileUrl: email === "dev@example.com" ? "https://github.com/mockdev" : null, // Example pre-filled
       };
       setUser(mockUser);
       localStorage.setItem('gittalent-user', JSON.stringify(mockUser));
@@ -69,14 +69,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, _pass: string, role: 'developer' | 'recruiter') => {
     setLoading(true);
     setError(null);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Mock sign-up logic
     const newUser: User = {
       id: 'new-user-' + Date.now(),
       email,
       role,
+      githubProfileUrl: null,
     };
     setUser(newUser);
     localStorage.setItem('gittalent-user', JSON.stringify(newUser));
@@ -87,7 +86,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     setLoading(true);
     setError(null);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
     setUser(null);
     localStorage.removeItem('gittalent-user');
@@ -95,8 +93,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
+  const updateUserGitHubProfile = async (url: string) => {
+    if (user) {
+      setLoading(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const updatedUser = { ...user, githubProfileUrl: url };
+      setUser(updatedUser);
+      localStorage.setItem('gittalent-user', JSON.stringify(updatedUser));
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading: loading || initialLoad, error, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading: loading || initialLoad, error, signIn, signUp, signOut, updateUserGitHubProfile }}>
       {children}
     </AuthContext.Provider>
   );

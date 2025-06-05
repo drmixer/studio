@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { CandidateShortlistingForm } from "./components/CandidateShortlistingForm";
@@ -9,20 +9,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2 } from "lucide-react";
+import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, updateUserGitHubProfile } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+  const [githubUrl, setGithubUrl] = useState(user?.githubProfileUrl || "");
+  const [isLinkingGithub, setIsLinkingGithub] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/auth');
     }
+    if (user?.githubProfileUrl) {
+      setGithubUrl(user.githubProfileUrl);
+    }
   }, [user, loading, router]);
+
+  const handleLinkGitHub = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || user.role !== 'developer') return;
+
+    if (!githubUrl.trim()) {
+      toast({ title: "GitHub URL Needed", description: "Please enter your GitHub profile URL.", variant: "destructive" });
+      return;
+    }
+    try {
+      new URL(githubUrl);
+      if (!githubUrl.includes("github.com")) {
+        throw new Error("Invalid GitHub URL pattern.");
+      }
+    } catch (_) {
+      toast({ title: "Invalid URL", description: "Please enter a valid GitHub Profile URL (e.g., https://github.com/username).", variant: "destructive"});
+      return;
+    }
+
+    setIsLinkingGithub(true);
+    try {
+      await updateUserGitHubProfile(githubUrl);
+      toast({
+        title: "GitHub Profile Linked!",
+        description: "Your GitHub profile URL has been saved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Linking Failed",
+        description: "Could not save your GitHub profile URL. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLinkingGithub(false);
+    }
+  };
+
 
   const mockCandidates = [
     { id: 1, name: "Alice Wonderland", stage: "New", summary: "Full-stack dev, React & Node.js expert.", avatar: "https://placehold.co/40x40.png?text=AW", aiHint: "woman avatar" },
@@ -109,12 +154,36 @@ export default function DashboardPage() {
         {user.role === 'developer' && (
            <Card className="shadow-lg overflow-hidden glassmorphic">
              <CardHeader>
-                <CardTitle className="text-2xl font-semibold">Your Profile (Developer)</CardTitle>
-                <CardDescription>Manage your GitTalent profile and showcase your skills.</CardDescription>
+                <CardTitle className="text-2xl font-semibold flex items-center"><Github className="h-6 w-6 mr-2 text-primary" /> Your Developer Profile</CardTitle>
+                <CardDescription>Manage your GitTalent profile and showcase your skills by linking your GitHub account.</CardDescription>
              </CardHeader>
              <CardContent>
-                <p>Developer-specific dashboard content will go here. (e.g., link GitHub, manage projects, view applications).</p>
-                 <Button className="mt-4 btn-gradient">Link GitHub Profile</Button>
+                <form onSubmit={handleLinkGitHub} className="space-y-4">
+                  <div>
+                    <Label htmlFor="github-profile-url">GitHub Profile URL</Label>
+                    <Input 
+                      id="github-profile-url" 
+                      type="url" 
+                      placeholder="https://github.com/yourusername" 
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      className="mt-1"
+                      disabled={isLinkingGithub}
+                    />
+                  </div>
+                  {user.githubProfileUrl && (
+                    <p className="text-sm text-muted-foreground">
+                      Current linked profile: <a href={user.githubProfileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.githubProfileUrl}</a>
+                    </p>
+                  )}
+                  <Button type="submit" className="btn-gradient" disabled={isLinkingGithub}>
+                    {isLinkingGithub ? <Loader2 className="animate-spin mr-2" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+                    {user.githubProfileUrl ? "Update GitHub Profile" : "Link GitHub Profile"}
+                  </Button>
+                </form>
+                <p className="mt-6 text-sm text-muted-foreground">
+                  Linking your GitHub profile allows GitTalent to showcase your projects, contributions, and skills to potential recruiters.
+                </p>
              </CardContent>
            </Card>
         )}
