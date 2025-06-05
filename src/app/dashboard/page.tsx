@@ -1,3 +1,4 @@
+
 import { CandidateShortlistingForm } from "./components/CandidateShortlistingForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChartHorizontalBig, Filter, Users, Briefcase } from "lucide-react";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 
 export default function DashboardPage() {
   const mockCandidates = [
@@ -67,9 +69,9 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <Badge variant={candidate.stage === 'New' ? 'default' : candidate.stage === 'Contacted' ? 'secondary' : 'outline'}
-                       className={candidate.stage === 'New' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 
-                                  candidate.stage === 'Contacted' ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300' : 
-                                  'bg-green-500/20 text-green-700 dark:text-green-300'}>
+                       className={candidate.stage === 'New' ? 'bg-primary/10 text-primary border-primary/20' : 
+                                  candidate.stage === 'Contacted' ? 'bg-accent/10 text-accent border-accent/20' : 
+                                  'bg-green-500/10 text-green-600 border-green-500/20'}>
                         {candidate.stage}
                       </Badge>
                     </Card>
