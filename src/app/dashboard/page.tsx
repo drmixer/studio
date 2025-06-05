@@ -243,7 +243,7 @@ export default function DashboardPage() {
             {selfAnalysisResult && !isAnalyzingSelf && user.githubProfileUrl && (
               <div className="animate-fade-in">
                 <h3 className="text-xl font-semibold mb-4 text-gradient-primary">Your GitHub Profile Analysis</h3>
-                <CandidateCard {...selfAnalysisResult} githubProfileUrl={user.githubProfileUrl} />
+                <CandidateCard {...selfAnalysisResult} githubProfileUrl={user.githubProfileUrl} showRecruiterActions={false} />
               </div>
             )}
           </div>

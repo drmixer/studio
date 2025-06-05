@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +8,10 @@ import Link from "next/link";
 
 interface CandidateCardProps extends CandidateShortlistingOutput {
   githubProfileUrl: string;
+  showRecruiterActions?: boolean;
 }
 
-export function CandidateCard({ summary, techStack, flaggedItems, githubProfileUrl }: CandidateCardProps) {
+export function CandidateCard({ summary, techStack, flaggedItems, githubProfileUrl, showRecruiterActions = true }: CandidateCardProps) {
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden w-full bg-card/90 backdrop-blur-sm">
       <div className="h-1.5 bg-gradient-to-r from-primary to-accent" />
@@ -59,14 +61,16 @@ export function CandidateCard({ summary, techStack, flaggedItems, githubProfileU
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 border-t">
-        <Button variant="outline" size="sm">
-          <Save className="mr-2 h-4 w-4" /> Save to Pipeline
-        </Button>
-        <Button size="sm" className="btn-gradient">
-          <Send className="mr-2 h-4 w-4" /> Send Message
-        </Button>
-      </CardFooter>
+      {showRecruiterActions && (
+        <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4 border-t">
+          <Button variant="outline" size="sm">
+            <Save className="mr-2 h-4 w-4" /> Save to Pipeline
+          </Button>
+          <Button size="sm" className="btn-gradient">
+            <Send className="mr-2 h-4 w-4" /> Send Message
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
