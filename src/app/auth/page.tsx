@@ -1,48 +1,133 @@
+
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Github } from "lucide-react";
+import { Github, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<'developer' | 'recruiter'>('developer');
+  
+  const { signIn, signUp, loading, error: authError } = useAuth();
+  const { toast } = useToast();
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSignUpMode) {
+      await signUp(email, password, role);
+    } else {
+      await signIn(email, password);
+    }
+  };
+
+  React.useEffect(() => {
+    if (authError) {
+      toast({
+        title: "Authentication Error",
+        description: authError,
+        variant: "destructive",
+      });
+    }
+  }, [authError, toast]);
+
   return (
     <div className="min-h-[calc(100vh-theme(spacing.16)-theme(spacing.32))] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-background via-secondary/30 to-background">
       <Card className="w-full max-w-md shadow-2xl overflow-hidden glassmorphic animate-fade-in">
         <div className="h-2 bg-gradient-to-r from-primary to-accent" />
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold font-headline text-gradient-primary">Welcome to GitTalent</CardTitle>
+          <CardTitle className="text-3xl font-bold font-headline text-gradient-primary">
+            {isSignUpMode ? "Create Account" : "Welcome Back"}
+          </CardTitle>
           <CardDescription className="text-foreground/80">
-            Sign in or create an account to get started.
+            {isSignUpMode ? "Join GitTalent today." : "Sign in to continue to GitTalent."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input id="email" type="email" placeholder="you@example.com" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required />
-          </div>
-          <Button type="submit" className="w-full btn-gradient shadow-md hover:shadow-lg transition-shadow">
-            Sign In
-          </Button>
-          <Button variant="outline" className="w-full flex items-center justify-center gap-2 border-border hover:bg-muted/50">
-            <Github className="h-5 w-5" />
-            Sign in with GitHub
-          </Button>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="you@example.com" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                autoComplete={isSignUpMode ? "new-password" : "current-password"}
+              />
+            </div>
+
+            {isSignUpMode && (
+              <div className="space-y-2">
+                <Label>I am a...</Label>
+                <RadioGroup 
+                  defaultValue="developer" 
+                  className="flex space-x-4"
+                  onValueChange={(value: 'developer' | 'recruiter') => setRole(value)}
+                  disabled={loading}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="developer" id="role-developer" />
+                    <Label htmlFor="role-developer">Developer</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="recruiter" id="role-recruiter" />
+                    <Label htmlFor="role-recruiter">Recruiter</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+            
+            <Button type="submit" className="w-full btn-gradient shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
+              {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+              {isSignUpMode ? "Sign Up" : "Sign In"}
+            </Button>
+            <Button variant="outline" className="w-full flex items-center justify-center gap-2 border-border hover:bg-muted/50" disabled={loading}>
+              <Github className="h-5 w-5" />
+              Sign in with GitHub
+            </Button>
+          </form>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2 text-sm">
           <p className="text-foreground/70">
-            Don&apos;t have an account?{" "}
-            <Link href="#" className="font-medium text-primary hover:underline">
-              Sign Up
-            </Link>
+            {isSignUpMode ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => setIsSignUpMode(!isSignUpMode)}
+              className="font-medium text-primary hover:underline"
+              disabled={loading}
+            >
+              {isSignUpMode ? "Sign In" : "Sign Up"}
+            </button>
           </p>
-          <Link href="#" className="font-medium text-primary/80 hover:underline text-xs">
-            Forgot your password?
-          </Link>
+          {!isSignUpMode && (
+            <Link href="#" className="font-medium text-primary/80 hover:underline text-xs">
+              Forgot your password?
+            </Link>
+          )}
         </CardFooter>
       </Card>
     </div>
