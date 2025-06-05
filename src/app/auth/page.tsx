@@ -11,9 +11,13 @@ import React, { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from 'next/navigation';
 
 export default function AuthPage() {
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const searchParams = useSearchParams();
+  const initialMode = searchParams.get('mode');
+
+  const [isSignUpMode, setIsSignUpMode] = useState(initialMode === 'signup');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<'developer' | 'recruiter'>('developer');
@@ -39,6 +43,13 @@ export default function AuthPage() {
       });
     }
   }, [authError, toast]);
+  
+  useEffect(() => {
+    // Reset form fields when switching modes
+    setEmail("");
+    setPassword("");
+    setRole("developer");
+  }, [isSignUpMode]);
 
   return (
     <div className="min-h-[calc(100vh-theme(spacing.16)-theme(spacing.32))] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-background via-secondary/30 to-background">
@@ -84,7 +95,7 @@ export default function AuthPage() {
               <div className="space-y-2">
                 <Label>I am a...</Label>
                 <RadioGroup 
-                  defaultValue="developer" 
+                  value={role}
                   className="flex space-x-4"
                   onValueChange={(value: 'developer' | 'recruiter') => setRole(value)}
                   disabled={loading}
