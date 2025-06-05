@@ -21,9 +21,9 @@ export function HeroSection() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 animate-slide-up opacity-0 animation-delay-600">
           <Button size="lg" asChild className="btn-gradient shadow-lg transform hover:scale-105 transition-transform duration-300">
-            <Link href="/contact">Request Access</Link>
+            <Link href="/auth">Request Access</Link>
           </Button>
-          <Button size="lg" variant="outline" asChild className="shadow-lg transform hover:scale-105 transition-transform duration-300">
+          <Button size="lg" variant="outline" asChild className="shadow-lg transform hover:scale-105 transition-transform duration-300 bg-background/70 hover:bg-background">
             <Link href="#features">See How It Works</Link>
           </Button>
         </div>
@@ -42,12 +42,6 @@ export function HeroSection() {
         .animation-delay-300 { animation-delay: 0.3s; }
         .animation-delay-600 { animation-delay: 0.6s; }
         .animation-delay-900 { animation-delay: 0.9s; }
-        .text-gradient-primary {
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
-        }
         .dark .text-gradient-primary {
           /* Ensure gradient is visible in dark mode if primary/accent change significantly */
            background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
@@ -56,3 +50,4 @@ export function HeroSection() {
     </section>
   );
 }
+
