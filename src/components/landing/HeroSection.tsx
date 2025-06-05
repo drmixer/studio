@@ -1,3 +1,4 @@
+
 "use client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -11,9 +12,9 @@ export function HeroSection() {
       </div>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold font-headline mb-6 animate-fade-in drop-shadow-lg">
-          Recruiting top talent.
+          Recruiting <span className="text-gradient-primary">top talent</span>.
           <br />
-          <span className="opacity-90">One commit at a time.</span>
+          <span className="opacity-90">One <span className="text-gradient-primary">commit</span> at a time.</span>
         </h1>
         <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-slide-up opacity-0 animation-delay-300 drop-shadow-sm">
           GitTalent leverages GitHub insights and AI to help you discover, vet, and hire exceptional software developers faster than ever.
@@ -27,11 +28,11 @@ export function HeroSection() {
           </Button>
         </div>
         <div className="mt-16 animate-fade-in opacity-0 animation-delay-900">
-          <Image 
-            src="https://placehold.co/800x400.png" 
-            alt="GitTalent Platform Showcase" 
-            width={800} 
-            height={400} 
+          <Image
+            src="https://placehold.co/800x400.png"
+            alt="GitTalent Platform Showcase"
+            width={800}
+            height={400}
             className="rounded-lg shadow-2xl mx-auto"
             data-ai-hint="dashboard hiring"
           />
@@ -41,6 +42,16 @@ export function HeroSection() {
         .animation-delay-300 { animation-delay: 0.3s; }
         .animation-delay-600 { animation-delay: 0.6s; }
         .animation-delay-900 { animation-delay: 0.9s; }
+        .text-gradient-primary {
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+        }
+        .dark .text-gradient-primary {
+          /* Ensure gradient is visible in dark mode if primary/accent change significantly */
+           background-image: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
+        }
       `}</style>
     </section>
   );
