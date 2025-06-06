@@ -17,7 +17,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { candidateShortlisting, type CandidateShortlistingOutput } from "@/ai/flows/candidate-shortlisting";
-import { suggestProfileEnhancements, type SuggestProfileEnhancementsOutput } from "@/ai/flows/suggest-profile-enhancements-flow";
+import { suggestProfileEnhancements, type SuggestProfileEnhancementsInput, type SuggestProfileEnhancementsOutput } from "@/ai/flows/suggest-profile-enhancements-flow";
 import { CandidateCard } from "./components/CandidateCard";
 
 interface Project {
@@ -131,18 +131,40 @@ export default function DashboardPage() {
       return;
     }
     setIsSuggestingProfile(true);
-    toast({ title: "Generating Profile Suggestions...", description: "AI is analyzing your GitHub profile. This may take a moment." });
+    toast({ title: "Generating Profile Suggestions...", description: "AI is analyzing your profile. This may take a moment." });
+    
+    const flowInput: SuggestProfileEnhancementsInput = {
+      githubProfileUrl: user.githubProfileUrl,
+      dashboardSkills: skills.length > 0 ? skills : undefined,
+      dashboardProjects: projects.length > 0 ? projects.map(p => ({ title: p.title, description: p.description })) : undefined,
+    };
+
     try {
-      const { bioSuggestion, skillSuggestions } = await suggestProfileEnhancements({ githubProfileUrl: user.githubProfileUrl });
-      setBio(bioSuggestion); // Update bio state, user can then save it
-      toast({ 
-        title: "AI Suggestions Ready!", 
-        description: "Bio updated with suggestion. Check console for skill suggestions. Remember to save your bio!",
-        duration: 7000 
-      });
-      console.log("AI Skill Suggestions:", skillSuggestions);
-      // For a more advanced UI, you could display these skillSuggestions and allow the user to add them one by one.
-      // For now, we'll update the bio and log skills. User can save bio and manually add skills.
+      const { bioSuggestion, skillSuggestions } = await suggestProfileEnhancements(flowInput);
+      
+      if (bioSuggestion && !bioSuggestion.toLowerCase().includes("could not generate")) {
+        setBio(bioSuggestion); 
+        toast({ 
+          title: "AI Suggestions Ready!", 
+          description: "Bio updated with AI suggestion. Review and save it. Check console for skill suggestions.",
+          duration: 7000 
+        });
+      } else if (bioSuggestion) {
+         toast({ 
+          title: "AI Suggestions", 
+          description: bioSuggestion, // Show the "could not generate" message
+          duration: 7000 
+        });
+      }
+
+      if (skillSuggestions && skillSuggestions.length > 0) {
+        console.log("AI Skill Suggestions (from GitHub & Dashboard):", skillSuggestions);
+        // Optionally, you could offer to merge these into the user's skill list here
+        // For now, they are logged, and the user can manually add or save the bio.
+      } else {
+        console.log("AI did not suggest any specific skills or skill suggestions were empty.");
+      }
+
     } catch (e: any) {
       const errorMessage = e.message || "Failed to get AI suggestions. Please try again.";
       toast({ title: "Suggestion Failed", description: errorMessage, variant: "destructive" });
@@ -517,4 +539,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
