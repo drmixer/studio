@@ -34,7 +34,7 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails, or the content is unusable, the bio should state this. If dashboard information is available, it might offer a bio based on that. If the tool itself returns an error (e.g., "TOOL_ERROR:"), that error should be reflected here.'),
+    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails, or the content is unusable (e.g. seems like a login/error page, or lacks key profile elements), the bio should state this and explain why the content was deemed unusable. If dashboard information is available, it might offer a bio based on that. If the tool itself returns an error (e.g., "TOOL_ERROR:"), that error should be reflected here.'),
   skillSuggestions: z
     .array(z.string())
     .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL and dashboard skills. This should be empty if no specific skills are found or if GitHub profile fetching fails/content is unusable and no dashboard skills are provided. Look for languages in repositories, skills mentioned in READMEs or the GitHub user bio. Do not include generic skills if nothing specific is found.'),
@@ -93,8 +93,8 @@ Instructions:
     Do not proceed with further analysis of GitHub content if fetching failed with a TOOL_ERROR.
 
 3.  **Handle Unusable GitHub Content (Not a TOOL_ERROR)**:
-    If the fetched GitHub content is NOT a TOOL_ERROR, but it appears to be a login page (e.g., contains "Sign in to GitHub", "Username or email address", "Password"), an error page (e.g., "Page not found"), or is unusually short (e.g. less than 500 characters) and lacks typical public profile information:
-    -   'bioSuggestion': Return a message like: "The content fetched from your GitHub URL ({{{githubProfileUrl}}}) does not appear to be a valid public profile. It might be a login page, an error page, or a very sparse profile. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} However, a suggestion can be attempted based on your dashboard inputs.{{/if}}"
+    If the fetched GitHub content is NOT a TOOL_ERROR, but it appears to be a login page (e.g., contains "Sign in to GitHub", "Username or email address", "Password"), an error page (e.g., "Page not found"), or is unusually short (e.g. less than 500 characters) AND lacks typical public profile information (like repository lists, user bio, or contribution activity graphs):
+    -   'bioSuggestion': Return a message like: "The content fetched from your GitHub URL ({{{githubProfileUrl}}}) does not appear to be a valid public profile. For example, it might be missing a clear section for repositories, a user bio, or includes phrases typical of a login/error page. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} However, a suggestion can be attempted based on your dashboard inputs.{{/if}}"
     -   'skillSuggestions': Return an empty array (skills cannot be derived from this GitHub content).
     Do not proceed with further analysis of GitHub content if it's of this nature.
 
@@ -104,7 +104,7 @@ Instructions:
         -   Craft a concise and engaging professional bio, **written in the first person** (e.g., "I am a...", "My experience includes...", "I am passionate about..."). Avoid phrases like "This individual is..." or "The user is...".
         -   The bio should be around 2-3 sentences long.
         -   **If GitHub content was successfully fetched, is informative, and not flagged as unusable in step 3**:
-            -   Prioritize insights from the GitHub content (technical achievements, project highlights, key contributions).
+            -   Prioritize insights from the GitHub content (technical achievements, project highlights, key contributions, programming languages used frequently).
             -   Integrate 'dashboardSkills' to highlight areas of expertise the user wants to emphasize.
             -   Incorporate noteworthy aspects from 'dashboardProjects' (titles and descriptions).
         -   **If GitHub content was NOT usable (due to TOOL_ERROR or unusable content as per step 2 or 3), OR if usable GitHub content is very minimal**:
@@ -118,7 +118,7 @@ Instructions:
         -   **Otherwise (GitHub content unusable or failed to fetch)**:
              -  If 'dashboardSkills' are provided, return those as 'skillSuggestions'.
              -  If no 'dashboardSkills' are provided, 'skillSuggestions' should be an empty array.
-        -   If no specific technical skills can be clearly identified from any source, 'skillSuggestions' should be an empty array. Do not list generic skills if no specific evidence is found.
+        -   If no specific technical skills can be clearly identified from any source, 'skillSuggestions' should be an empty array. Do not list generic skills like "Problem Solving" if no specific technical evidence is found. Focus on concrete technical skills.
 
 Format your output as a JSON object matching the defined schema.
 `,
@@ -143,7 +143,7 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
         console.log('[suggestProfileEnhancementsFlow] GitHub fetch problematic. Attempting fallback bio generation using dashboard inputs.');
         
         // Construct a focused prompt for dashboard-only bio
-        let dashboardBioPromptText = `Based *only* on the following user-declared information, write a concise, engaging professional bio in the first person (e.g., "I am a...", "I specialize in...") (2-3 sentences). Make it sound natural.`;
+        let dashboardBioPromptText = `Based *only* on the following user-declared information, write a concise, engaging professional bio in the first person (e.g., "I am a...", "I specialize in...") (2-3 sentences). Make it sound natural. Do not mention that this bio is based on dashboard information.`;
         if (input.dashboardSkills?.length) {
             dashboardBioPromptText += `\nUser's Self-Declared Dashboard Skills: ${input.dashboardSkills.join(', ')}.`;
         } else {
@@ -163,6 +163,9 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
             input: { schema: z.object({}) }, // No input needed beyond the prompt itself
             output: { schema: z.object({ bioSuggestion: z.string() })},
             prompt: dashboardBioPromptText,
+            // Ensure this fallback prompt uses a model capable of good text generation
+            // If the default model in ai.ts is already 'gemini-2.0-flash' or similar, this might not be needed
+            // model: 'googleai/gemini-pro', // Or your preferred text generation model if different
         });
 
         try {
