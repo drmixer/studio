@@ -69,20 +69,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log("AuthContext: setUser called with user data:", userData);
           } else {
             console.warn(`AuthContext: User document NOT FOUND in Firestore for UID: ${fbUser.uid}. This may happen if the user was authenticated but their profile document wasn't created or was deleted. Signing out user.`);
-            setUser(null);
+            // Log environment variables as seen by client during this specific error
+            console.error("AuthContext: Logging environment variables as seen by client when Firestore doc not found (onAuthStateChanged):");
+            console.error("  NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "MISSING!");
+            console.error("  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "MISSING!");
+            console.error("  NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING!");
+            console.error("  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "MISSING!");
+            console.error("  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "MISSING!");
+            console.error("  NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "MISSING!");
+            setUser(null); 
             console.log("AuthContext: setUser called with null because Firestore doc not found.");
             await firebaseSignOut(auth); 
             console.log("AuthContext: firebaseSignOut called due to missing Firestore doc.");
           }
         } catch (docError: any) {
           console.error(`AuthContext: Firestore getDoc error for UID ${fbUser.uid}:`, docError.message, docError.code, docError.stack);
-          console.error("AuthContext: Logging environment variables as seen by client during this error (AuthContext onAuthStateChanged):");
-          console.error("   NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "MISSING!");
-          console.error("   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "MISSING!");
-          console.error("   NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING!");
-          console.error("   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "MISSING!");
-          console.error("   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "MISSING!");
-          console.error("   NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "MISSING!");
+          console.error("AuthContext: Logging environment variables as seen by client during this error (AuthContext onAuthStateChanged getDoc error):");
+          console.error("  NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "MISSING!");
+          console.error("  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "MISSING!");
+          console.error("  NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING!");
+          console.error("  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "MISSING!");
+          console.error("  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "MISSING!");
+          console.error("  NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "MISSING!");
           setError(`Failed to load user profile: ${docError.message}. Check Firestore rules and connectivity.`);
           setUser(null); 
           console.log("AuthContext: setUser called with null due to Firestore getDoc error.");
@@ -93,14 +101,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("AuthContext: setUser called with null because fbUser is null.");
       }
       setLoading(false);
-      console.log("AuthContext: setLoading(false). Current loading state:", false, "Current user state:", user);
+      console.log("AuthContext: setLoading(false). Current loading state:", loading, "Current user state:", user);
     });
 
     return () => {
       console.log("AuthContext: Unsubscribing from onAuthStateChanged.");
       unsubscribe();
     }
-  }, []); // Keep dependencies minimal, router is not needed here.
+  }, []);
 
   const signIn = async (email: string, pass: string) => {
     setLoading(true);
@@ -111,19 +119,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("AuthContext: Firebase signInWithEmailAndPassword successful. Firebase User UID:", userCredential.user.uid);
       // onAuthStateChanged will handle setting the user state and profile data.
       // We wait for loading to be false and user to be set by onAuthStateChanged before redirecting.
-      // This is a common pattern but can be tricky. Let's log current context user before pushing.
-      console.log("AuthContext (signIn): User state before router.push:", user);
+      console.log("AuthContext (signIn): User state before router.push:", user); // Log user state here
       router.push('/dashboard');
     } catch (e: any) {
       console.error("AuthContext: Firebase SignIn Error:", e);
       setError(e.message || "Failed to sign in. Please check your credentials.");
+      setLoading(false); // Ensure loading is set to false on error
     } finally {
-      // setLoading(false) will be handled by onAuthStateChanged listener or if an error occurs here.
-      // If signInWithEmailAndPassword fails, onAuthStateChanged might not fire immediately with the new user,
-      // so ensure loading is handled. If it succeeds, onAuthStateChanged sets loading.
-      if (error) { // if there was an error directly in signIn
-           setLoading(false);
-      }
+      // setLoading is handled by onAuthStateChanged or the catch block
       console.log("AuthContext: signIn function finished. Loading:", loading, "Error:", error);
     }
   };
@@ -149,16 +152,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       console.log("AuthContext: Attempting to set Firestore document for new user:", newUserProfile);
       await setDoc(doc(db, 'users', fbUser.uid), newUserProfile);
-      console.log("AuthContext: Firestore document set for new user. Redirecting to dashboard.");
+      console.log("AuthContext: Firestore document set successfully for new user. UID:", fbUser.uid);
       // onAuthStateChanged will manage setting the user state.
       router.push('/dashboard');
     } catch (e: any) {
-      console.error("AuthContext: Firebase SignUp Error:", e);
+      console.error("AuthContext: Firebase SignUp Error (createUser or setDoc):", e);
       setError(e.message || "Failed to sign up. Please try again.");
+      setLoading(false); // Ensure loading is set to false on error
     } finally {
-       if (error) { // if there was an error directly in signUp
-           setLoading(false);
-      }
+      // setLoading is handled by onAuthStateChanged or the catch block
       console.log("AuthContext: signUp function finished. Loading:", loading, "Error:", error);
     }
   };
@@ -176,7 +178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("AuthContext: Firebase signOut error:", e);
       setError(e.message || "Failed to sign out.");
     } finally {
-      setLoading(false); // Explicitly set loading false here as onAuthStateChanged might be slower or not fire as expected on signout for redirects
+      setLoading(false); 
       console.log("AuthContext: signOut function finished. Loading:", loading, "Error:", error);
     }
   };
