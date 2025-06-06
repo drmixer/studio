@@ -12,6 +12,15 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Log a warning if essential config values are missing
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error(
+    "CRITICAL FIREBASE CONFIG MISSING: NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is not defined in your environment variables. " +
+    "Ensure your .env.local file is correctly set up with all necessary Firebase project credentials, and that you have RESTARTED your development server after creating or modifying this file."
+  );
+}
+
+
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
@@ -26,3 +35,4 @@ auth = getAuth(app);
 db = getFirestore(app);
 
 export { app, auth, db };
+

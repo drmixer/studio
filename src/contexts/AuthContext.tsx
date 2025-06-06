@@ -56,28 +56,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // User is signed in, fetch their profile from Firestore
         const userDocRef = doc(db, 'users', fbUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setUser({ id: fbUser.uid, ...userDocSnap.data() } as User);
-        } else {
-          // This case should ideally not happen if signUp creates a doc
-          // Or, it could be a user authenticated through other means without a profile yet
-          console.warn("User document not found in Firestore for UID:", fbUser.uid);
-          // You might want to create a default profile here or sign them out
-          // For now, let's set a minimal user or sign out
-           setUser(null); // Or handle more gracefully
-           await firebaseSignOut(auth); // Sign out if profile is missing
+        try {
+          console.log(`AuthContext: Attempting to fetch Firestore document for user: ${fbUser.uid}`);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            setUser({ id: fbUser.uid, ...userDocSnap.data() } as User);
+            console.log(`AuthContext: Successfully fetched profile for user: ${fbUser.uid}`);
+          } else {
+            console.warn(`AuthContext: User document not found in Firestore for UID: ${fbUser.uid}. This may happen if the user was authenticated but their profile document wasn't created or was deleted. Signing out user.`);
+            setUser(null); 
+            await firebaseSignOut(auth); 
+          }
+        } catch (docError: any) {
+          console.error(`AuthContext: Firestore getDoc error for UID ${fbUser.uid}:`, docError.message, docError.code, docError.stack);
+          console.error("AuthContext: Current Firebase config status during getDoc error:", {
+            apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Loaded' : 'MISSING!',
+            authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? 'Loaded' : 'MISSING!',
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'Loaded' : 'MISSING!',
+          });
+          setError(`Failed to load user profile: ${docError.message}. This can be due to network issues, incorrect Firebase setup (check .env.local and restart server), or Firestore rules. Check browser console for details.`);
+          setUser(null); 
+          // Consider if auto sign-out is desired here or if user should see a persistent error state.
+          // For now, setting user to null and showing error.
         }
       } else {
-        // User is signed out
         setUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   const signIn = async (email: string, pass: string) => {
@@ -85,8 +94,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user and redirecting
-      // No need to fetch user doc here, onAuthStateChanged handles it.
       router.push('/dashboard');
     } catch (e: any) {
       console.error("Firebase SignIn Error:", e);
@@ -103,7 +110,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user;
       
-      // Create user document in Firestore
       const newUserProfile: User = {
         id: fbUser.uid,
         email: fbUser.email,
@@ -115,7 +121,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         createdAt: serverTimestamp(),
       };
       await setDoc(doc(db, 'users', fbUser.uid), newUserProfile);
-      // onAuthStateChanged will handle setting the user
       router.push('/dashboard');
     } catch (e: any) {
       console.error("Firebase SignUp Error:", e);
@@ -130,9 +135,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await firebaseSignOut(auth);
-      // onAuthStateChanged will set user to null
       router.push('/auth');
-    } catch (e: any) { // Added missing opening curly brace here
+    } catch (e: any) {
       setError(e.message || "Failed to sign out.");
     } finally {
       setLoading(false);
@@ -146,7 +150,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         await updateDoc(userDocRef, updates);
-        // Optimistically update local state or re-fetch for consistency
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
            setUser({ id: firebaseUser.uid, ...userDocSnap.data() } as User);
