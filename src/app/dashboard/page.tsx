@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const { user, loading, updateUserProfile } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  
+
   // GitHub Profile States
   const [githubUrl, setGithubUrl] = useState(user?.githubProfileUrl || "");
   const [isLinkingGithub, setIsLinkingGithub] = useState(false);
@@ -86,13 +86,13 @@ export default function DashboardPage() {
       const matchesSearchTerm = searchTerm.toLowerCase() === "" ||
         candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         candidate.summary.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesLanguage = selectedLanguage === "all" || 
+
+      const matchesLanguage = selectedLanguage === "all" ||
         candidate.languages.map(l => l.toLowerCase()).includes(selectedLanguage.toLowerCase());
 
       const matchesStage = selectedStage === "all" ||
         candidate.stage.toLowerCase() === selectedStage.toLowerCase();
-        
+
       return matchesSearchTerm && matchesLanguage && matchesStage;
     });
   }, [mockCandidatesData, searchTerm, selectedLanguage, selectedStage]);
@@ -178,7 +178,7 @@ export default function DashboardPage() {
     }
     setIsSuggestingProfile(true);
     toast({ title: "Generating Profile Suggestions...", description: "AI is analyzing your profile. This may take a moment." });
-    
+
     const flowInput: SuggestProfileEnhancementsInput = {
       githubProfileUrl: user.githubProfileUrl,
       dashboardSkills: skills.length > 0 ? skills : undefined,
@@ -187,20 +187,20 @@ export default function DashboardPage() {
 
     try {
       const { bioSuggestion, skillSuggestions } = await suggestProfileEnhancements(flowInput);
-      
+
       if (bioSuggestion) {
          if (bioSuggestion.toLowerCase().includes("tool error: tool_error:") || bioSuggestion.toLowerCase().includes("could not generate a bio suggestion")) {
-            toast({ 
-                title: "AI Bio Suggestion", 
+            toast({
+                title: "AI Bio Suggestion",
                 description: bioSuggestion,
-                duration: 7000 
+                duration: 7000
             });
          } else {
-            setBio(bioSuggestion); 
-            toast({ 
-                title: "AI Bio Suggestion Ready!", 
+            setBio(bioSuggestion);
+            toast({
+                title: "AI Bio Suggestion Ready!",
                 description: "Bio updated with AI suggestion. Review and save it.",
-                duration: 7000 
+                duration: 7000
             });
          }
       }
@@ -212,7 +212,7 @@ export default function DashboardPage() {
           description: "Check your browser's console for skill suggestions from AI.",
           duration: 7000
         });
-      } else if (skillSuggestions) { 
+      } else if (skillSuggestions) {
         console.log("AI did not suggest any specific skills or skill suggestions were empty.");
          toast({
           title: "AI Skill Suggestions",
@@ -245,15 +245,16 @@ export default function DashboardPage() {
 
   const handleAddSkill = async () => {
     if (!user || !currentSkill.trim()) return;
-    const newSkills = [...new Set([...skills, currentSkill.trim()])]; 
-    setSkills(newSkills); 
+    const skillToAdd = currentSkill.trim();
+    const newSkills = [...new Set([...skills, skillToAdd])];
+    setSkills(newSkills);
     setCurrentSkill("");
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ skills: newSkills });
-      toast({ title: "Skill Added", description: `${currentSkill.trim()} has been added to your skills.` });
+      toast({ title: "Skill Added", description: `${skillToAdd} has been added to your skills.` });
     } catch (error) {
-      setSkills(skills.filter(s => s !== currentSkill.trim())); 
+      setSkills(skills.filter(s => s !== skillToAdd)); // Revert on error
       toast({ title: "Update Failed", description: "Could not add skill. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -264,19 +265,19 @@ export default function DashboardPage() {
     if (!user) return;
     const oldSkills = [...skills];
     const newSkills = skills.filter(skill => skill !== skillToRemove);
-    setSkills(newSkills); 
+    setSkills(newSkills);
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ skills: newSkills });
       toast({ title: "Skill Removed", description: `${skillToRemove} has been removed from your skills.` });
     } catch (error) {
-      setSkills(oldSkills); 
+      setSkills(oldSkills); // Revert on error
       toast({ title: "Update Failed", description: "Could not remove skill. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
     }
   };
-  
+
   const handleAddProject = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user || !currentProject.title.trim() || !currentProject.url.trim()) {
@@ -292,14 +293,14 @@ export default function DashboardPage() {
 
     const newProject: Project = { ...currentProject, id: Date.now().toString() };
     const newProjects = [...projects, newProject];
-    setProjects(newProjects); 
+    setProjects(newProjects);
     setCurrentProject({title: "", url: "", description: ""});
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ projects: newProjects });
       toast({ title: "Project Added", description: `${newProject.title} has been added to your portfolio.` });
     } catch (error) {
-      setProjects(projects.filter(p => p.id !== newProject.id)); 
+      setProjects(projects.filter(p => p.id !== newProject.id)); // Revert on error
       toast({ title: "Update Failed", description: "Could not add project. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -310,20 +311,19 @@ export default function DashboardPage() {
     if (!user) return;
     const oldProjects = [...projects];
     const newProjects = projects.filter(project => project.id !== projectIdToRemove);
-    setProjects(newProjects); 
+    setProjects(newProjects);
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ projects: newProjects });
       const removedProject = oldProjects.find(p => p.id === projectIdToRemove);
       toast({ title: "Project Removed", description: `${removedProject?.title || 'Project'} has been removed.` });
     } catch (error) {
-      setProjects(oldProjects); 
+      setProjects(oldProjects); // Revert on error
       toast({ title: "Update Failed", description: "Could not remove project. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
     }
   };
-
 
   if (loading || !user) {
     return (
@@ -358,9 +358,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-6 flex flex-col sm:flex-row gap-4">
-                <Input 
-                  placeholder="Search candidates by name or summary..." 
-                  className="max-w-xs" 
+                <Input
+                  placeholder="Search candidates by name or summary..."
+                  className="max-w-xs"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -384,7 +384,7 @@ export default function DashboardPage() {
                     <TabsTrigger key={stage} value={stage.toLowerCase()}>{stage}</TabsTrigger>
                   ))}
                 </TabsList>
-                
+
                 <TabsContent value={selectedStage.toLowerCase()}>
                   {filteredCandidates.length > 0 ? (
                     <div className="space-y-4">
@@ -404,7 +404,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
                             <Badge
-                               variant="secondary" // Simplified variant
+                               variant="secondary"
                                className={`capitalize ${
                                  candidate.stage === 'New' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
                                  candidate.stage === 'Contacted' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' :
@@ -412,7 +412,7 @@ export default function DashboardPage() {
                                  candidate.stage === 'Offer' ? 'bg-green-500/10 text-green-700 border-green-500/20' :
                                  candidate.stage === 'Hired' ? 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30' :
                                  'bg-gray-500/10 text-gray-600 border-gray-500/20'
-                               }`} // Simplified className logic
+                               }`}
                               >
                                 {candidate.stage}
                             </Badge>
@@ -434,7 +434,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
-        
+
         {user.role === 'developer' && (
           <div className="space-y-8">
             <Card className="shadow-lg overflow-hidden glassmorphic">
@@ -446,10 +446,10 @@ export default function DashboardPage() {
                   <form onSubmit={handleLinkGitHub} className="space-y-4">
                     <div>
                       <Label htmlFor="github-profile-url">GitHub Profile URL</Label>
-                      <Input 
-                        id="github-profile-url" 
-                        type="url" 
-                        placeholder="https://github.com/yourusername" 
+                      <Input
+                        id="github-profile-url"
+                        type="url"
+                        placeholder="https://github.com/yourusername"
                         value={githubUrl}
                         onChange={(e) => setGithubUrl(e.target.value)}
                         className="mt-1"
@@ -495,7 +495,6 @@ export default function DashboardPage() {
                   <p className="text-destructive">{selfAnalysisError}</p>
                 </CardContent>
               </Card>
-            </Card>
             )}
 
             {selfAnalysisResult && !isAnalyzingSelf && user.githubProfileUrl && (
@@ -532,7 +531,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2 mb-4">
-                  <Input 
+                  <Input
                     placeholder="Add a skill (e.g., React)"
                     value={currentSkill}
                     onChange={(e) => setCurrentSkill(e.target.value)}
@@ -622,4 +621,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
