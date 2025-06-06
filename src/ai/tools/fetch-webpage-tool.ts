@@ -54,9 +54,9 @@ export const fetchWebpageContentTool = ai.defineTool(
       const textContent = await response.text();
       console.log(`[fetchWebpageContentTool] Fetched content from ${url}. Total length: ${textContent.length}. First 500 chars: START_SNIPPET>>>${textContent.substring(0,500)}<<<END_SNIPPET`);
       
-      const MIN_CONTENT_LENGTH = 2500; // Threshold for a minimally viable GitHub profile page
+      const MIN_CONTENT_LENGTH = 15000; // Significantly increased threshold
       if (textContent.length < MIN_CONTENT_LENGTH) {
-        const toolErrorMessage = `TOOL_ERROR: Fetched content too short (length: ${textContent.length} characters, minimum expected: ${MIN_CONTENT_LENGTH}). This likely means the full profile page was not retrieved. The content started with: "${textContent.substring(0,150).replace(/\n/g, ' ')}..."`;
+        const toolErrorMessage = `TOOL_ERROR: Fetched content too short (length: ${textContent.length} characters, minimum expected: ${MIN_CONTENT_LENGTH}). This likely means the full profile page was not retrieved, or the profile is very sparse. The content started with: "${textContent.substring(0,150).replace(/\n/g, ' ')}..."`;
         console.warn(`[fetchWebpageContentTool] ${toolErrorMessage}`);
         return toolErrorMessage;
       }
@@ -64,7 +64,7 @@ export const fetchWebpageContentTool = ai.defineTool(
       // Check for common login page phrases
       const lowerContent = textContent.toLowerCase();
       const loginPhrases = ["sign in to github", "username or email address", "password", "forgot password?", "create an account"];
-      const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404 error"];
+      const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404 error", "something went wrong"];
 
       if (loginPhrases.some(phrase => lowerContent.includes(phrase))) {
         const detectedPhrase = loginPhrases.find(phrase => lowerContent.includes(phrase));
