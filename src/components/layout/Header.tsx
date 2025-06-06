@@ -6,7 +6,7 @@ import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import { DarkModeToggle } from '@/components/shared/DarkModeToggle';
 import { Menu, LogOut } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -59,7 +59,10 @@ export default function Header() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right">
-                <nav className="flex flex-col space-y-4 mt-8">
+                <SheetHeader className="mb-4 text-left">
+                  <SheetTitle>Navigation Menu</SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col space-y-4">
                   {navItems.map((item) => (
                     <Link
                       key={item.label}
