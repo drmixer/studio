@@ -30,8 +30,8 @@ export const fetchWebpageContentTool = ai.defineTool(
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9', // Added Accept-Language
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
         }
       });
 
@@ -52,12 +52,19 @@ export const fetchWebpageContentTool = ai.defineTool(
       }
       
       const textContent = await response.text();
-      console.log(`[fetchWebpageContentTool] Fetched content from ${url}. Initial length: ${textContent.length}. First 500 chars: START_SNIPPET>>>${textContent.substring(0,500)}<<<END_SNIPPET`);
+      console.log(`[fetchWebpageContentTool] Fetched content from ${url}. Total length: ${textContent.length}. First 500 chars: START_SNIPPET>>>${textContent.substring(0,500)}<<<END_SNIPPET`);
       
+      const MIN_CONTENT_LENGTH = 2500; // Threshold for a minimally viable GitHub profile page
+      if (textContent.length < MIN_CONTENT_LENGTH) {
+        const toolErrorMessage = `TOOL_ERROR: Fetched content too short (length: ${textContent.length} characters, minimum expected: ${MIN_CONTENT_LENGTH}). This likely means the full profile page was not retrieved. The content started with: "${textContent.substring(0,150).replace(/\n/g, ' ')}..."`;
+        console.warn(`[fetchWebpageContentTool] ${toolErrorMessage}`);
+        return toolErrorMessage;
+      }
+
       // Check for common login page phrases
       const lowerContent = textContent.toLowerCase();
       const loginPhrases = ["sign in to github", "username or email address", "password", "forgot password?", "create an account"];
-      const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404"];
+      const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404 error"];
 
       if (loginPhrases.some(phrase => lowerContent.includes(phrase))) {
         const detectedPhrase = loginPhrases.find(phrase => lowerContent.includes(phrase));
@@ -73,7 +80,6 @@ export const fetchWebpageContentTool = ai.defineTool(
         return toolErrorMessage;
       }
       
-      // Check for JSON parsing error string from previous attempts, if it's the content itself
       if (textContent.trim().toLowerCase().startsWith("expecting value: line 1 column 1")) {
         console.warn(`[fetchWebpageContentTool] The fetched textContent for ${url} appears to be a JSON parsing error itself: "${textContent}"`);
         return `TOOL_ERROR: The server at ${url} returned content that resulted in a parsing error: "${textContent}". This might indicate an issue with the remote server or an unexpected response format.`;
@@ -91,7 +97,6 @@ export const fetchWebpageContentTool = ai.defineTool(
       let specificMessage = "An unexpected error occurred during the fetch operation itself.";
       if (e instanceof Error) {
         specificMessage = e.message; 
-        // Specific check for the "could not find a tag name to match" error
         if (e.message.toLowerCase().includes("could not find a tag name to match")) {
           specificMessage = "Malformed HTML content received (e.g., 'could not find a tag name to match'). The page structure might be invalid or incomplete.";
         }
@@ -105,10 +110,9 @@ export const fetchWebpageContentTool = ai.defineTool(
           specificMessage = 'Could not stringify non-standard error object.';
         }
       }
-      const toolErrorMessage = `TOOL_ERROR: Exception occurred while trying to process ${url}: ${specificMessage}. The URL might be invalid, the network unavailable, or an issue within the fetch tool.`;
+      const toolErrorMessage = `TOOL_ERROR: Exception occurred while trying to process ${url}: ${specificMessage}. This could be due to network issues, an invalid URL, or an internal tool problem.`;
       console.error(`[fetchWebpageContentTool] Returning error: ${toolErrorMessage}`);
       return toolErrorMessage;
     }
   }
 );
-

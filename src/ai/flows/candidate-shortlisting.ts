@@ -56,22 +56,16 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the candida
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
 If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
-- Your 'summary' should state: "Failed to process GitHub profile. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow. For example, 'TOOL_ERROR: Detected login page content at ... Found phrase: "sign in to github"' or 'TOOL_ERROR: HTTP error fetching ... Status: 404 Not Found']".
+- Your 'summary' should state: "Failed to process GitHub profile. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow. For example, 'TOOL_ERROR: Fetched content too short (length: 1234 characters, minimum expected: 2500)...' or 'TOOL_ERROR: Detected login page content...' or 'TOOL_ERROR: HTTP error fetching...']".
 - Your 'techStack' should be an empty array.
 - One 'flaggedItem' should be: "Profile processing failed. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
-Do not attempt to analyze further if the tool reported a TOOL_ERROR.
+Do not attempt to analyze further if the tool reported any TOOL_ERROR.
 
-If the fetched content (not a TOOL_ERROR) is unusually short (e.g., less than 500 characters) AND lacks clear indicators of projects, repositories, or typical profile information (like a user bio, contribution graph, or repository list):
-- Your 'summary' should state: "The fetched content from the GitHub URL ({{{githubProfileUrl}}}) is very short and does not appear to contain sufficient information for analysis (e.g., missing repository list, user bio, or contribution activity). Please verify the URL points to a public, populated profile. Actual content snippet (first 100 chars): [First 100 characters of fetched content]."
-- Your 'techStack' should be an empty array.
-- One 'flaggedItem' should be: "Fetched content from {{{githubProfileUrl}}} is too sparse or lacks expected profile sections for analysis. Please verify the URL and profile content."
-Do not attempt to analyze further if the content is of this nature.
-
-Otherwise (if the content seems like a valid GitHub profile page and is not a TOOL_ERROR and not an unusable page as described above):
-Analyze it thoroughly. Based *only* on the information present in the successfully fetched HTML content, provide the following:
-- summary: A concise summary of the candidate. Focus on their bio, key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content.
-- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content.
-- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If nothing specific stands out, state that.
+Otherwise (if the tool provided content without reporting a TOOL_ERROR):
+Analyze the fetched HTML content thoroughly. Based *only* on the information present in the successfully fetched HTML content, provide the following:
+- summary: A concise summary of the candidate. Focus on their bio (if present), key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content. If the content appears to be a valid HTML page but lacks specific GitHub profile elements (e.g., no repository list found, no user bio text), state that the content was fetched but seems incomplete or not a standard profile structure.
+- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content. If no specific skills can be confidently identified from the content, this should be an empty array.
+- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If the content quality is low despite the tool not erroring (e.g., missing key sections), one flagged item should reflect this, like "The fetched content, while not a tool error, appears to lack typical GitHub profile sections. Analysis might be limited." If nothing specific stands out in good content, state that.
 
 Format your output as a JSON object matching the defined schema.
   `,
@@ -90,4 +84,3 @@ const candidateShortlistingFlow = ai.defineFlow(
     return output!;
   }
 );
-
