@@ -48,8 +48,8 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the develop
 
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
-If the 'fetchWebpageContent' tool returns an error message instead of HTML content:
-- Your 'bioSuggestion' should state: "Failed to fetch profile content. Tool error: [Exact error message from the tool]".
+If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
+- Your 'bioSuggestion' should state: "Failed to fetch profile content. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
 - Your 'skillSuggestions' should be an empty array.
 Do not attempt to analyze further if fetching failed.
 
@@ -75,3 +75,4 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
     return output!;
   }
 );
+

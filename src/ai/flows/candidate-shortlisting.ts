@@ -55,10 +55,10 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the candida
 
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
-If the 'fetchWebpageContent' tool returns an error message instead of HTML content:
-- Your 'summary' should state: "Failed to fetch profile content. Tool error: [Exact error message from the tool]".
+If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
+- Your 'summary' should state: "Failed to fetch profile content. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
 - Your 'techStack' should be an empty array.
-- One 'flaggedItem' should be "Profile fetching failed with error: [Exact error message from the tool]".
+- One 'flaggedItem' should be "Profile fetching failed. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
 Do not attempt to analyze further if fetching failed.
 
 Otherwise, if HTML content is successfully fetched, analyze it thoroughly.
@@ -84,3 +84,4 @@ const candidateShortlistingFlow = ai.defineFlow(
     return output!;
   }
 );
+
