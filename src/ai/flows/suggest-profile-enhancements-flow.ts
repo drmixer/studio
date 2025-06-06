@@ -23,7 +23,7 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio (2-3 sentences) based on the information found at the GitHub profile URL.'),
+    .describe('A suggested professional bio (2-3 sentences) based on the information found at the GitHub profile URL. If fetching fails, this will contain the error.'),
   skillSuggestions: z
     .array(z.string())
     .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL.'),
@@ -31,7 +31,10 @@ const SuggestProfileEnhancementsOutputSchema = z.object({
 export type SuggestProfileEnhancementsOutput = z.infer<typeof SuggestProfileEnhancementsOutputSchema>;
 
 export async function suggestProfileEnhancements(input: SuggestProfileEnhancementsInput): Promise<SuggestProfileEnhancementsOutput> {
-  return suggestProfileEnhancementsFlow(input);
+  console.log('[suggestProfileEnhancementsFlow] Received input:', JSON.stringify(input));
+  const result = await suggestProfileEnhancementsFlow(input);
+  console.log('[suggestProfileEnhancementsFlow] Sending output:', JSON.stringify(result));
+  return result;
 }
 
 const prompt = ai.definePrompt({
@@ -45,9 +48,13 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the develop
 
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
-If the fetching tool returns an error message, your bioSuggestion should state that the profile could not be accessed and why, and skillSuggestions should be an empty array.
-Otherwise, once you have the fetched HTML content, analyze it thoroughly.
-Based *only* on the information present in the fetched HTML content, generate the following:
+If the 'fetchWebpageContent' tool returns an error message instead of HTML content:
+- Your 'bioSuggestion' should state: "Failed to fetch profile content. Tool error: [Exact error message from the tool]".
+- Your 'skillSuggestions' should be an empty array.
+Do not attempt to analyze further if fetching failed.
+
+Otherwise, if HTML content is successfully fetched, analyze it thoroughly.
+Based *only* on the information present in the successfully fetched HTML content, generate the following:
 1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the fetched content.
 2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile text, pinned repositories, and project descriptions within the fetched content.
 
@@ -62,7 +69,7 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
     outputSchema: SuggestProfileEnhancementsOutputSchema,
   },
   async input => {
-    console.log('[suggestProfileEnhancementsFlow] Input:', JSON.stringify(input));
+    console.log('[suggestProfileEnhancementsFlow] Input to prompt:', JSON.stringify(input));
     const {output} = await prompt(input);
     console.log('[suggestProfileEnhancementsFlow] Output from prompt:', JSON.stringify(output));
     return output!;

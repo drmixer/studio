@@ -26,19 +26,22 @@ const CandidateShortlistingOutputSchema = z.object({
   summary: z
     .string()
     .describe(
-      'A summary of the candidate, including trending repositories, and repeated patterns of commits, based on information found at the GitHub profile URL.'
+      'A summary of the candidate, including trending repositories, and repeated patterns of commits, based on information found at the GitHub profile URL. If fetching fails, this will contain the error.'
     ),
   techStack: z
     .array(z.string())
     .describe('The tech stack of the candidate, inferred from their repositories visible at the GitHub profile URL.'),
   flaggedItems: z
     .array(z.string())
-    .describe('A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences.'),
+    .describe('A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences. If fetching fails, one item will describe the error.'),
 });
 export type CandidateShortlistingOutput = z.infer<typeof CandidateShortlistingOutputSchema>;
 
 export async function candidateShortlisting(input: CandidateShortlistingInput): Promise<CandidateShortlistingOutput> {
-  return candidateShortlistingFlow(input);
+  console.log('[candidateShortlistingFlow] Received input:', JSON.stringify(input));
+  const result = await candidateShortlistingFlow(input);
+  console.log('[candidateShortlistingFlow] Sending output:', JSON.stringify(result));
+  return result;
 }
 
 const prompt = ai.definePrompt({
@@ -52,12 +55,17 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the candida
 
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
-If the fetching tool returns an error message, indicate that the profile could not be accessed and base your response on that error.
-Otherwise, once you have the fetched HTML content, analyze it thoroughly.
-Based *only* on the information present in the fetched HTML content, provide the following:
-- summary: A concise summary of the candidate. Focus on their bio, key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content. If the content is an error message from fetching, summarize that.
-- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content. If content is an error, this should be an empty array.
-- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If the content is an error message, one flagged item should explain the fetching error. If nothing specific stands out, state that.
+If the 'fetchWebpageContent' tool returns an error message instead of HTML content:
+- Your 'summary' should state: "Failed to fetch profile content. Tool error: [Exact error message from the tool]".
+- Your 'techStack' should be an empty array.
+- One 'flaggedItem' should be "Profile fetching failed with error: [Exact error message from the tool]".
+Do not attempt to analyze further if fetching failed.
+
+Otherwise, if HTML content is successfully fetched, analyze it thoroughly.
+Based *only* on the information present in the successfully fetched HTML content, provide the following:
+- summary: A concise summary of the candidate. Focus on their bio, key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content.
+- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content.
+- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If nothing specific stands out, state that.
 
 Format your output as a JSON object matching the defined schema.
   `,
@@ -70,7 +78,7 @@ const candidateShortlistingFlow = ai.defineFlow(
     outputSchema: CandidateShortlistingOutputSchema,
   },
   async input => {
-    console.log('[candidateShortlistingFlow] Input:', JSON.stringify(input));
+    console.log('[candidateShortlistingFlow] Input to prompt:', JSON.stringify(input));
     const {output} = await prompt(input);
     console.log('[candidateShortlistingFlow] Output from prompt:', JSON.stringify(output));
     return output!;
