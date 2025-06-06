@@ -34,7 +34,7 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails (e.g., tool returns "TOOL_ERROR: Fetched content too short..." or "TOOL_ERROR: Detected login page..."), or the content is semantically unusable for analysis, the bio should state this and explain why. If dashboard information is available, it might offer a bio based on that.'),
+    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails (e.g., tool returns "TOOL_ERROR: Fetched content too short..." or "TOOL_ERROR: Detected login page..."), or the content is semantically unusable for analysis, the bio should state this and explain why (e.g., content too short, seems to be a login page, or lacks key profile elements possibly due to JavaScript-heavy rendering). If dashboard information is available, it might offer a bio based on that.'),
   skillSuggestions: z
     .array(z.string())
     .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL and dashboard skills. This should be empty if no specific skills are found or if GitHub profile fetching fails/content is unusable and no dashboard skills are provided. Look for languages in repositories, skills mentioned in READMEs or the GitHub user bio. Do not include generic skills if nothing specific is found.'),
@@ -46,8 +46,9 @@ export async function suggestProfileEnhancements(input: SuggestProfileEnhancemen
   let result = await suggestProfileEnhancementsPrimaryFlow(input);
   
   const gitHubFetchProblem = result?.bioSuggestion?.includes("Tool error: TOOL_ERROR:") || 
-                             result?.bioSuggestion?.includes("tool error:") || // general catch for tool errors
-                             (result?.bioSuggestion?.includes("content from the GitHub URL") && (result?.bioSuggestion?.includes("is very short") || result?.bioSuggestion?.includes("does not appear to be a valid")));
+                             result?.bioSuggestion?.includes("tool error:") || 
+                             (result?.bioSuggestion?.includes("content from the GitHub URL") && (result?.bioSuggestion?.includes("is very short") || result?.bioSuggestion?.includes("does not appear to be a valid") || result?.bioSuggestion?.includes("does not seem to be a semantically valid"))) ||
+                             (result?.bioSuggestion?.includes("Failed to analyze the GitHub profile") && result?.bioSuggestion?.includes("does not seem to be a semantically valid"));
 
 
   if (gitHubFetchProblem && (input.dashboardSkills?.length || input.dashboardProjects?.length)) {
@@ -149,7 +150,7 @@ Instructions:
     Carefully examine the fetched HTML content.
     - First, determine if the content *semantically appears to be a valid, populated public GitHub profile page*. Look for key indicators like a list of repositories (e.g., elements with class names like 'repo-list' or itemprop="owns"), a user bio section (e.g., class 'user-profile-bio'), contribution activity sections (e.g., 'js-yearly-contributions'), or identifiable GitHub UI elements related to user content.
     - If the content, despite its length and passing initial tool checks, does NOT appear to be a valid or informative public profile (e.g., it's missing a clear repository list, a user bio, contribution data, seems to be a generic error/redirect page, or is otherwise too sparse for meaningful analysis even if long):
-        -   'bioSuggestion': Return a message like: "Failed to analyze the GitHub profile from {{{githubProfileUrl}}}. Although the fetched content passed initial checks (e.g. for length and obvious errors), it does not seem to be a semantically valid or informative public GitHub profile page (e.g., missing key sections like repositories or bio, or appears to be a login/error page). GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} A suggestion based on dashboard inputs may be attempted separately.{{/if}} Snippet indicative of issue (first 100 chars): [the first 100 characters of the problematic content, cleaned of newlines for readability]"
+        -   'bioSuggestion': Return a message like: "Failed to analyze the GitHub profile from {{{githubProfileUrl}}}. Although the fetched content passed initial checks (e.g., for length and obvious errors), it does not seem to be a semantically valid or informative public GitHub profile page. This can happen if the page relies heavily on client-side JavaScript to display its primary content, which the current fetching method may not fully capture. For example, it might be missing key sections like repositories or bio. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} A suggestion based on dashboard inputs may be attempted separately.{{/if}} Snippet indicative of issue (first 100 chars): [the first 100 characters of the problematic content, cleaned of newlines for readability]"
         -   'skillSuggestions': Return an empty array.
         Do not proceed with GitHub-based suggestions if the content is deemed semantically unusable.
 
@@ -189,3 +190,4 @@ const suggestProfileEnhancementsPrimaryFlow = ai.defineFlow(
   }
 );
 
+    
