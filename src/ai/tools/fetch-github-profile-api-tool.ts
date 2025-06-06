@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview A Genkit tool to fetch GitHub profile and repository data using the GitHub API.
  *
