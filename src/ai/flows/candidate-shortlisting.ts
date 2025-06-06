@@ -13,6 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { fetchWebpageContentTool } from '@/ai/tools/fetch-webpage-tool';
 
 const CandidateShortlistingInputSchema = z.object({
   githubProfileUrl: z
@@ -44,14 +45,21 @@ const prompt = ai.definePrompt({
   name: 'candidateShortlistingPrompt',
   input: {schema: CandidateShortlistingInputSchema},
   output: {schema: CandidateShortlistingOutputSchema},
-  prompt: `You are an AI-powered recruiting assistant. Your job is to analyze the content and public information found at a given GitHub profile URL for a candidate and create a short list summary to help the recruiter screen the candidate.
+  tools: [fetchWebpageContentTool],
+  prompt: `You are an AI-powered recruiting assistant.
+Your primary task is to analyze the content of a candidate's GitHub profile to help a recruiter screen them.
+First, use the 'fetchWebpageContent' tool to get the HTML content of the candidate's GitHub profile using the 'githubProfileUrl' provided in the input.
 
-  Analyze the information available at the following GitHub profile URL: {{{githubProfileUrl}}}
-  \n
-  Your output should be formatted as a JSON object with the following fields:
-  - summary: A short summary of the candidate, including trending repositories and repeated patterns of commits, based on the information at the provided URL.
-  - techStack: The tech stack of the candidate, inferred from their repositories visible at the provided URL.
-  - flaggedItems: A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences.
+GitHub Profile URL to fetch: {{{githubProfileUrl}}}
+
+If the fetching tool returns an error message, indicate that the profile could not be accessed and base your response on that error.
+Otherwise, once you have the fetched HTML content, analyze it thoroughly.
+Based *only* on the information present in the fetched HTML content, provide the following:
+- summary: A concise summary of the candidate. Focus on their bio, key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content. If the content is an error message from fetching, summarize that.
+- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content. If content is an error, this should be an empty array.
+- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If the content is an error message, one flagged item should explain the fetching error. If nothing specific stands out, state that.
+
+Format your output as a JSON object matching the defined schema.
   `,
 });
 

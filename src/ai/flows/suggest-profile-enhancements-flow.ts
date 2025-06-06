@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { fetchWebpageContentTool } from '@/ai/tools/fetch-webpage-tool';
 
 const SuggestProfileEnhancementsInputSchema = z.object({
   githubProfileUrl: z
@@ -37,14 +38,18 @@ const prompt = ai.definePrompt({
   name: 'suggestProfileEnhancementsPrompt',
   input: {schema: SuggestProfileEnhancementsInputSchema},
   output: {schema: SuggestProfileEnhancementsOutputSchema},
+  tools: [fetchWebpageContentTool],
   prompt: `You are an AI assistant helping developers enhance their GitTalent profile.
-Based on the provided GitHub profile URL, analyze the public repositories, contributions, and profile information found at that URL.
+Your task is to analyze a developer's GitHub profile content and suggest improvements.
+First, use the 'fetchWebpageContent' tool to get the HTML content of the developer's GitHub profile using the 'githubProfileUrl' provided in the input.
 
-GitHub Profile URL: {{{githubProfileUrl}}}
+GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
-Generate the following based on the content available at the URL:
-1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the profile content.
-2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile content, pinned repositories, and recent activity found at the URL. Provide a diverse list if possible.
+If the fetching tool returns an error message, your bioSuggestion should state that the profile could not be accessed and why, and skillSuggestions should be an empty array.
+Otherwise, once you have the fetched HTML content, analyze it thoroughly.
+Based *only* on the information present in the fetched HTML content, generate the following:
+1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the fetched content.
+2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile text, pinned repositories, and project descriptions within the fetched content.
 
 Format your output as a JSON object matching the defined schema.
 `,
