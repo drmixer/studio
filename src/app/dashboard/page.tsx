@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, useMemo, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, type User } from '@/contexts/AuthContext';
 import { CandidateShortlistingForm } from "./components/CandidateShortlistingForm";
@@ -27,6 +27,17 @@ interface Project {
   description?: string;
 }
 
+interface MockCandidate {
+  id: number;
+  name: string;
+  stage: "New" | "Contacted" | "Interviewed" | "Offer" | "Hired";
+  summary: string;
+  avatar: string;
+  aiHint: string;
+  languages: string[];
+  profileUrl?: string;
+}
+
 export default function DashboardPage() {
   const { user, loading, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -48,15 +59,50 @@ export default function DashboardPage() {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isSuggestingProfile, setIsSuggestingProfile] = useState(false);
 
+  // Recruiter Pipeline States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedStage, setSelectedStage] = useState("all");
+
+  const mockCandidatesData: MockCandidate[] = useMemo(() => [
+    { id: 1, name: "Alice Wonderland", stage: "New", summary: "Full-stack dev, React & Node.js expert.", avatar: "https://placehold.co/40x40.png?text=AW", aiHint: "woman avatar", languages: ["JavaScript", "React", "Node.js", "TypeScript"], profileUrl: "https://github.com/alice" },
+    { id: 2, name: "Bob The Builder", stage: "Contacted", summary: "Frontend specialist, Vue.js enthusiast.", avatar: "https://placehold.co/40x40.png?text=BB", aiHint: "man avatar", languages: ["JavaScript", "Vue.js", "HTML", "CSS"], profileUrl: "https://github.com/bob" },
+    { id: 3, name: "Charlie Brown", stage: "Interviewed", summary: "Backend engineer, Python & Django.", avatar: "https://placehold.co/40x40.png?text=CB", aiHint: "person avatar", languages: ["Python", "Django", "SQL"], profileUrl: "https://github.com/charlie" },
+    { id: 4, name: "Diana Prince", stage: "New", summary: "DevOps engineer, AWS & Kubernetes expert.", avatar: "https://placehold.co/40x40.png?text=DP", aiHint: "woman hero", languages: ["Python", "Shell", "Docker", "Kubernetes", "AWS"], profileUrl: "https://github.com/diana" },
+    { id: 5, name: "Edward Elric", stage: "Offer", summary: "Mobile developer, Swift & Kotlin.", avatar: "https://placehold.co/40x40.png?text=EE", aiHint: "anime character", languages: ["Swift", "Kotlin", "Java"], profileUrl: "https://github.com/edward" },
+    { id: 6, name: "Fiona Gallagher", stage: "Hired", summary: "Data Scientist, proficient in R and Python.", avatar: "https://placehold.co/40x40.png?text=FG", aiHint: "woman profile", languages: ["Python", "R", "SQL", "Pandas"], profileUrl: "https://github.com/fiona" },
+  ], []);
+
+  const availableLanguages = useMemo(() => {
+    const allLangs = new Set<string>();
+    mockCandidatesData.forEach(candidate => {
+      candidate.languages.forEach(lang => allLangs.add(lang));
+    });
+    return Array.from(allLangs).sort();
+  }, [mockCandidatesData]);
+
+  const filteredCandidates = useMemo(() => {
+    return mockCandidatesData.filter(candidate => {
+      const matchesSearchTerm = searchTerm.toLowerCase() === "" ||
+        candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidate.summary.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesLanguage = selectedLanguage === "all" || 
+        candidate.languages.map(l => l.toLowerCase()).includes(selectedLanguage.toLowerCase());
+
+      const matchesStage = selectedStage === "all" ||
+        candidate.stage.toLowerCase() === selectedStage.toLowerCase();
+        
+      return matchesSearchTerm && matchesLanguage && matchesStage;
+    });
+  }, [mockCandidatesData, searchTerm, selectedLanguage, selectedStage]);
+
 
   useEffect(() => {
-    console.log("DashboardPage: useEffect triggered. Loading:", loading, "User:", user ? user.id : null);
     if (!loading && !user) {
-      console.log("DashboardPage: Not loading and no user, redirecting to /auth.");
       router.replace('/auth');
     }
     if (user) {
-      console.log("DashboardPage: User detected, setting profile form states.");
       setGithubUrl(user.githubProfileUrl || "");
       setBio(user.bio || "");
       setSkills(user.skills || []);
@@ -142,27 +188,37 @@ export default function DashboardPage() {
     try {
       const { bioSuggestion, skillSuggestions } = await suggestProfileEnhancements(flowInput);
       
-      if (bioSuggestion && !bioSuggestion.toLowerCase().includes("could not generate")) {
-        setBio(bioSuggestion); 
-        toast({ 
-          title: "AI Suggestions Ready!", 
-          description: "Bio updated with AI suggestion. Review and save it. Check console for skill suggestions.",
-          duration: 7000 
-        });
-      } else if (bioSuggestion) {
-         toast({ 
-          title: "AI Suggestions", 
-          description: bioSuggestion, // Show the "could not generate" message
-          duration: 7000 
-        });
+      if (bioSuggestion) {
+         if (bioSuggestion.toLowerCase().includes("tool error: tool_error:") || bioSuggestion.toLowerCase().includes("could not generate a bio suggestion")) {
+            toast({ 
+                title: "AI Bio Suggestion", 
+                description: bioSuggestion,
+                duration: 7000 
+            });
+         } else {
+            setBio(bioSuggestion); 
+            toast({ 
+                title: "AI Bio Suggestion Ready!", 
+                description: "Bio updated with AI suggestion. Review and save it.",
+                duration: 7000 
+            });
+         }
       }
 
       if (skillSuggestions && skillSuggestions.length > 0) {
         console.log("AI Skill Suggestions (from GitHub & Dashboard):", skillSuggestions);
-        // Optionally, you could offer to merge these into the user's skill list here
-        // For now, they are logged, and the user can manually add or save the bio.
-      } else {
+        toast({
+          title: "AI Skill Suggestions",
+          description: "Check your browser's console for skill suggestions from AI.",
+          duration: 7000
+        });
+      } else if (skillSuggestions) { 
         console.log("AI did not suggest any specific skills or skill suggestions were empty.");
+         toast({
+          title: "AI Skill Suggestions",
+          description: "AI did not find specific new skills to suggest based on the available information.",
+          duration: 7000
+        });
       }
 
     } catch (e: any) {
@@ -189,7 +245,7 @@ export default function DashboardPage() {
 
   const handleAddSkill = async () => {
     if (!user || !currentSkill.trim()) return;
-    const newSkills = [...new Set([...skills, currentSkill.trim()])]; // Ensure unique skills
+    const newSkills = [...new Set([...skills, currentSkill.trim()])]; 
     setSkills(newSkills); 
     setCurrentSkill("");
     setIsUpdatingProfile(true);
@@ -197,7 +253,7 @@ export default function DashboardPage() {
       await updateUserProfile({ skills: newSkills });
       toast({ title: "Skill Added", description: `${currentSkill.trim()} has been added to your skills.` });
     } catch (error) {
-      setSkills(skills.filter(s => s !== currentSkill.trim())); // Revert on error
+      setSkills(skills.filter(s => s !== currentSkill.trim())); 
       toast({ title: "Update Failed", description: "Could not add skill. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -268,14 +324,8 @@ export default function DashboardPage() {
     }
   };
 
-  const mockCandidates = [
-    { id: 1, name: "Alice Wonderland", stage: "New", summary: "Full-stack dev, React & Node.js expert.", avatar: "https://placehold.co/40x40.png?text=AW", aiHint: "woman avatar" },
-    { id: 2, name: "Bob The Builder", stage: "Contacted", summary: "Frontend specialist, Vue.js enthusiast.", avatar: "https://placehold.co/40x40.png?text=BB", aiHint: "man avatar" },
-    { id: 3, name: "Charlie Brown", stage: "Interviewed", summary: "Backend engineer, Python & Django.", avatar: "https://placehold.co/40x40.png?text=CB", aiHint: "person avatar" },
-  ];
 
   if (loading || !user) {
-    console.log("DashboardPage: Rendering Loader2. Loading state:", loading, "User:", user ? user.id : null);
     return (
       <div className="min-h-[calc(100vh-theme(spacing.16)-theme(spacing.32))] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -284,6 +334,8 @@ export default function DashboardPage() {
   }
 
   const combinedLoading = loading || isLinkingGithub || isAnalyzingSelf || isUpdatingProfile || isSuggestingProfile;
+  const stageTabs: (MockCandidate["stage"] | "all")[] = ["all", "New", "Contacted", "Interviewed", "Offer", "Hired"];
+
 
   return (
     <div className="py-8 md:py-12 bg-secondary/30 min-h-screen">
@@ -306,47 +358,77 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-6 flex flex-col sm:flex-row gap-4">
-                <Input placeholder="Search candidates..." className="max-w-xs" />
-                <Select>
+                <Input 
+                  placeholder="Search candidates by name or summary..." 
+                  className="max-w-xs" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter by language" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="java">Java</SelectItem>
+                    <SelectItem value="all">All Languages</SelectItem>
+                    {availableLanguages.map(lang => (
+                      <SelectItem key={lang} value={lang.toLowerCase()}>{lang}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Button variant="outline"><Filter className="h-4 w-4 mr-2" />More Filters</Button>
               </div>
 
-              <Tabs defaultValue="all" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="new">New</TabsTrigger>
-                  <TabsTrigger value="contacted">Contacted</TabsTrigger>
-                  <TabsTrigger value="interviewed">Interviewed</TabsTrigger>
+              <Tabs value={selectedStage} onValueChange={setSelectedStage} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4">
+                   {stageTabs.map(stage => (
+                    <TabsTrigger key={stage} value={stage.toLowerCase()}>{stage}</TabsTrigger>
+                  ))}
                 </TabsList>
-                <TabsContent value="all">
-                  <div className="space-y-4">
-                    {mockCandidates.map(candidate => (
-                      <Card key={candidate.id} className="p-4 flex items-center justify-between hover:shadow-md transition-shadow bg-card/80">
-                        <div className="flex items-center space-x-3">
-                          <Image src={candidate.avatar} alt={candidate.name} width={40} height={40} className="rounded-full" data-ai-hint={candidate.aiHint} />
-                          <div>
-                            <p className="font-medium text-foreground">{candidate.name}</p>
-                            <p className="text-xs text-foreground/70">{candidate.summary}</p>
+                
+                <TabsContent value={selectedStage.toLowerCase()}>
+                  {filteredCandidates.length > 0 ? (
+                    <div className="space-y-4">
+                      {filteredCandidates.map(candidate => (
+                        <Card key={candidate.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:shadow-md transition-shadow bg-card/80">
+                          <div className="flex items-start sm:items-center space-x-3 mb-2 sm:mb-0">
+                            <Image src={candidate.avatar} alt={candidate.name} width={40} height={40} className="rounded-full" data-ai-hint={candidate.aiHint} />
+                            <div>
+                              <p className="font-medium text-foreground">{candidate.name}</p>
+                              <p className="text-xs text-foreground/70">{candidate.summary}</p>
+                              {candidate.profileUrl && (
+                                <a href={candidate.profileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center mt-1">
+                                  <Github className="h-3 w-3 mr-1" /> View Profile
+                                </a>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <Badge variant={candidate.stage === 'New' ? 'default' : candidate.stage === 'Contacted' ? 'secondary' : 'outline'}
-                         className={candidate.stage === 'New' ? 'bg-primary/10 text-primary border-primary/20' : 
-                                    candidate.stage === 'Contacted' ? 'bg-accent/10 text-accent border-accent/20' : 
-                                    'bg-green-500/10 text-green-600 border-green-500/20'}>
-                          {candidate.stage}
-                        </Badge>
-                      </Card>
-                    ))}
-                  </div>
+                          <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
+                            <Badge
+                               variant="secondary" // Simplified variant
+                               className={`capitalize ${
+                                 candidate.stage === 'New' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                                 candidate.stage === 'Contacted' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' :
+                                 candidate.stage === 'Interviewed' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                                 candidate.stage === 'Offer' ? 'bg-green-500/10 text-green-700 border-green-500/20' :
+                                 candidate.stage === 'Hired' ? 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30' :
+                                 'bg-gray-500/10 text-gray-600 border-gray-500/20'
+                               }`} // Simplified className logic
+                              >
+                                {candidate.stage}
+                            </Badge>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {candidate.languages.slice(0, 3).map(lang => (
+                                    <Badge key={lang} variant="secondary" className="text-xs bg-muted/50 text-muted-foreground/80">{lang}</Badge>
+                                ))}
+                                {candidate.languages.length > 3 && <Badge variant="secondary" className="text-xs bg-muted/50 text-muted-foreground/80">+{candidate.languages.length - 3}</Badge>}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-foreground/70 py-8">No candidates match the current filters.</p>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -413,6 +495,7 @@ export default function DashboardPage() {
                   <p className="text-destructive">{selfAnalysisError}</p>
                 </CardContent>
               </Card>
+            </Card>
             )}
 
             {selfAnalysisResult && !isAnalyzingSelf && user.githubProfileUrl && (
@@ -539,3 +622,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
