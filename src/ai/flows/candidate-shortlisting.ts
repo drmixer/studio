@@ -26,14 +26,14 @@ const CandidateShortlistingOutputSchema = z.object({
   summary: z
     .string()
     .describe(
-      'A summary of the candidate, including trending repositories, and repeated patterns of commits, based on information found at the GitHub profile URL. If fetching fails, this will contain the error.'
+      'A summary of the candidate, including trending repositories, and repeated patterns of commits, based on information found at the GitHub profile URL. If fetching fails or content is unusable, this will contain an error or explanation.'
     ),
   techStack: z
     .array(z.string())
-    .describe('The tech stack of the candidate, inferred from their repositories visible at the GitHub profile URL.'),
+    .describe('The tech stack of the candidate, inferred from their repositories visible at the GitHub profile URL. Empty if fetching fails or content is unusable.'),
   flaggedItems: z
     .array(z.string())
-    .describe('A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences. If fetching fails, one item will describe the error.'),
+    .describe('A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences. If fetching fails or content is unusable, one item will describe the issue.'),
 });
 export type CandidateShortlistingOutput = z.infer<typeof CandidateShortlistingOutputSchema>;
 
@@ -59,10 +59,16 @@ If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
 - Your 'summary' should state: "Failed to fetch profile content. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
 - Your 'techStack' should be an empty array.
 - One 'flaggedItem' should be "Profile fetching failed. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
-Do not attempt to analyze further if fetching failed.
+Do not attempt to analyze further if fetching failed with a TOOL_ERROR.
 
-Otherwise, if HTML content is successfully fetched, analyze it thoroughly.
-Based *only* on the information present in the successfully fetched HTML content, provide the following:
+If the fetched content (not a TOOL_ERROR) seems to be a login page (e.g., contains "Sign in to GitHub", "Username or email address", "Password"), an error page (e.g., "Page not found", "This is not the web page you are looking for"), or is unusually short (e.g., less than 500 characters) and lacks clear indicators of projects, repositories, or typical profile information:
+- Your 'summary' should state: "The fetched content from the GitHub URL ({{{githubProfileUrl}}}) does not appear to be a valid or informative public profile. It might be a login page, an error page, or a very sparse profile. Analysis cannot proceed effectively."
+- Your 'techStack' should be an empty array.
+- One 'flaggedItem' should be: "Fetched content from {{{githubProfileUrl}}} is not a usable GitHub profile. Please verify the URL points to a public, populated GitHub user profile."
+Do not attempt to analyze further if the content is of this nature.
+
+Otherwise (if the content seems like a valid GitHub profile page and is not a TOOL_ERROR and not an unusable page as described above):
+Analyze it thoroughly. Based *only* on the information present in the successfully fetched HTML content, provide the following:
 - summary: A concise summary of the candidate. Focus on their bio, key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content.
 - techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content.
 - flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If nothing specific stands out, state that.
