@@ -56,15 +56,15 @@ First, use the 'fetchWebpageContent' tool to get the HTML content of the candida
 GitHub Profile URL to fetch: {{{githubProfileUrl}}}
 
 If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
-- Your 'summary' should state: "Failed to fetch profile content. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
+- Your 'summary' should state: "Failed to process GitHub profile. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow. For example, 'TOOL_ERROR: Detected login page content at ... Found phrase: "sign in to github"' or 'TOOL_ERROR: HTTP error fetching ... Status: 404 Not Found']".
 - Your 'techStack' should be an empty array.
-- One 'flaggedItem' should be "Profile fetching failed. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
-Do not attempt to analyze further if fetching failed with a TOOL_ERROR.
+- One 'flaggedItem' should be: "Profile processing failed. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]".
+Do not attempt to analyze further if the tool reported a TOOL_ERROR.
 
-If the fetched content (not a TOOL_ERROR) seems to be a login page (e.g., contains "Sign in to GitHub", "Username or email address", "Password"), an error page (e.g., "Page not found", "This is not the web page you are looking for"), or is unusually short (e.g., less than 500 characters) AND lacks clear indicators of projects, repositories, or typical profile information:
-- Your 'summary' should state: "The fetched content from the GitHub URL ({{{githubProfileUrl}}}) does not appear to be a valid or informative public profile. For example, it might be missing a clear repository list, a user bio, or includes phrases typical of a login/error page. Please verify the URL and ensure the profile is public and populated. Actual content snippet indicative of the issue (first 100 chars): [First 100 characters of fetched content if it's short and problematic, otherwise describe general issue like 'Contains login phrases']."
+If the fetched content (not a TOOL_ERROR) is unusually short (e.g., less than 500 characters) AND lacks clear indicators of projects, repositories, or typical profile information (like a user bio, contribution graph, or repository list):
+- Your 'summary' should state: "The fetched content from the GitHub URL ({{{githubProfileUrl}}}) is very short and does not appear to contain sufficient information for analysis (e.g., missing repository list, user bio, or contribution activity). Please verify the URL points to a public, populated profile. Actual content snippet (first 100 chars): [First 100 characters of fetched content]."
 - Your 'techStack' should be an empty array.
-- One 'flaggedItem' should be: "Fetched content from {{{githubProfileUrl}}} appears unusable. It might be a login/error page or lacks essential profile sections (like repositories or bio). Please verify the URL points to a public, populated GitHub user profile."
+- One 'flaggedItem' should be: "Fetched content from {{{githubProfileUrl}}} is too sparse or lacks expected profile sections for analysis. Please verify the URL and profile content."
 Do not attempt to analyze further if the content is of this nature.
 
 Otherwise (if the content seems like a valid GitHub profile page and is not a TOOL_ERROR and not an unusable page as described above):

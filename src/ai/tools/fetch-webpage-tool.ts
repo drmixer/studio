@@ -29,10 +29,9 @@ export const fetchWebpageContentTool = ai.defineTool(
       console.log(`[fetchWebpageContentTool] Attempting to fetch URL: ${url}`);
       const response = await fetch(url, {
         headers: {
-          // Using a more common browser User-Agent
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Language': 'en-US,en;q=0.9', // Added Accept-Language
         }
       });
 
@@ -53,27 +52,49 @@ export const fetchWebpageContentTool = ai.defineTool(
       }
       
       const textContent = await response.text();
-      // CRITICAL LOG: What is textContent right after fetching?
-      console.log(`[fetchWebpageContentTool] Raw textContent from response.text() for URL ${url}: START>>>${textContent}<<<END`);
+      console.log(`[fetchWebpageContentTool] Fetched content from ${url}. Initial length: ${textContent.length}. First 500 chars: START_SNIPPET>>>${textContent.substring(0,500)}<<<END_SNIPPET`);
       
-      console.log(`[fetchWebpageContentTool] Successfully fetched content from ${url}. Initial length: ${textContent.length}`);
-      
-      const MAX_CONTENT_LENGTH = 200000; // Increased limit slightly
-      if (textContent.length > MAX_CONTENT_LENGTH) {
-        console.warn(`[fetchWebpageContentTool] Content from ${url} is very long (${textContent.length} chars). Truncating to ${MAX_CONTENT_LENGTH} chars.`);
-        return textContent.substring(0, MAX_CONTENT_LENGTH);
+      // Check for common login page phrases
+      const lowerContent = textContent.toLowerCase();
+      const loginPhrases = ["sign in to github", "username or email address", "password", "forgot password?", "create an account"];
+      const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404"];
+
+      if (loginPhrases.some(phrase => lowerContent.includes(phrase))) {
+        const detectedPhrase = loginPhrases.find(phrase => lowerContent.includes(phrase));
+        const toolErrorMessage = `TOOL_ERROR: Detected login page content at ${url}. Found phrase: "${detectedPhrase}".`;
+        console.warn(`[fetchWebpageContentTool] ${toolErrorMessage}`);
+        return toolErrorMessage;
       }
-      // If textContent is the problematic JSON error string, it will be returned here
+
+      if (errorPhrases.some(phrase => lowerContent.includes(phrase))) {
+        const detectedPhrase = errorPhrases.find(phrase => lowerContent.includes(phrase));
+         const toolErrorMessage = `TOOL_ERROR: Detected error page content at ${url}. Found phrase: "${detectedPhrase}".`;
+        console.warn(`[fetchWebpageContentTool] ${toolErrorMessage}`);
+        return toolErrorMessage;
+      }
+      
+      // Check for JSON parsing error string from previous attempts, if it's the content itself
       if (textContent.trim().toLowerCase().startsWith("expecting value: line 1 column 1")) {
         console.warn(`[fetchWebpageContentTool] The fetched textContent for ${url} appears to be a JSON parsing error itself: "${textContent}"`);
         return `TOOL_ERROR: The server at ${url} returned content that resulted in a parsing error: "${textContent}". This might indicate an issue with the remote server or an unexpected response format.`;
       }
+
+      const MAX_CONTENT_LENGTH = 200000; 
+      if (textContent.length > MAX_CONTENT_LENGTH) {
+        console.warn(`[fetchWebpageContentTool] Content from ${url} is very long (${textContent.length} chars). Truncating to ${MAX_CONTENT_LENGTH} chars.`);
+        return textContent.substring(0, MAX_CONTENT_LENGTH);
+      }
+      
       return textContent;
     } catch (e: any) {
       console.error(`[fetchWebpageContentTool] Raw exception object during fetch for URL ${url}:`, e);
       let specificMessage = "An unexpected error occurred during the fetch operation itself.";
       if (e instanceof Error) {
-        specificMessage = e.message; // This might be "Expecting value: line 1 column 1 (char 0)"
+        specificMessage = e.message; 
+        // Specific check for the "could not find a tag name to match" error
+        if (e.message.toLowerCase().includes("could not find a tag name to match")) {
+          specificMessage = "Malformed HTML content received (e.g., 'could not find a tag name to match'). The page structure might be invalid or incomplete.";
+        }
       } else if (typeof e === 'string') {
         specificMessage = e;
       } else {

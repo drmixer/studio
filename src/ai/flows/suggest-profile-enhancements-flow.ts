@@ -34,7 +34,7 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails, or the content is unusable (e.g. seems like a login/error page, or lacks key profile elements), the bio should state this and explain why the content was deemed unusable. If dashboard information is available, it might offer a bio based on that. If the tool itself returns an error (e.g., "TOOL_ERROR:"), that error should be reflected here.'),
+    .describe('A suggested professional bio, written in the first person (2-3 sentences). This bio should be based on analysis of the GitHub profile URL and any provided dashboard skills/projects. If fetching the GitHub profile fails (e.g., tool returns "TOOL_ERROR: Detected login page..." or "TOOL_ERROR: HTTP error..."), or the content is too sparse for analysis, the bio should state this and explain why. If dashboard information is available, it might offer a bio based on that.'),
   skillSuggestions: z
     .array(z.string())
     .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL and dashboard skills. This should be empty if no specific skills are found or if GitHub profile fetching fails/content is unusable and no dashboard skills are provided. Look for languages in repositories, skills mentioned in READMEs or the GitHub user bio. Do not include generic skills if nothing specific is found.'),
@@ -43,13 +43,66 @@ export type SuggestProfileEnhancementsOutput = z.infer<typeof SuggestProfileEnha
 
 export async function suggestProfileEnhancements(input: SuggestProfileEnhancementsInput): Promise<SuggestProfileEnhancementsOutput> {
   console.log('[suggestProfileEnhancementsFlow] Received input:', JSON.stringify(input, null, 2));
-  const result = await suggestProfileEnhancementsFlow(input);
-  console.log('[suggestProfileEnhancementsFlow] Sending output:', JSON.stringify(result, null, 2));
+  let result = await suggestProfileEnhancementsPrimaryFlow(input);
+  
+  const gitHubFetchProblem = result?.bioSuggestion?.includes("TOOL_ERROR:") || 
+                             result?.bioSuggestion?.includes("content from the GitHub URL") && (result?.bioSuggestion?.includes("is very short") || result?.bioSuggestion?.includes("does not appear to be a valid"));
+
+
+  if (gitHubFetchProblem && (input.dashboardSkills?.length || input.dashboardProjects?.length)) {
+      console.log('[suggestProfileEnhancementsFlow] GitHub fetch problematic or content unusable. Attempting fallback bio generation using dashboard inputs.');
+      
+      let dashboardBioPromptText = `Based *only* on the following user-declared information, write a concise, engaging professional bio in the first person (e.g., "I am a...", "I specialize in...") (2-3 sentences). Make it sound natural. Do not mention that this bio is based on dashboard information unless no dashboard inputs are provided.`;
+      if (input.dashboardSkills?.length) {
+          dashboardBioPromptText += `\nUser's Self-Declared Dashboard Skills: ${input.dashboardSkills.join(', ')}.`;
+      } else {
+          dashboardBioPromptText += `\nUser's Self-Declared Dashboard Skills: None provided.`;
+      }
+      if (input.dashboardProjects?.length) {
+          dashboardBioPromptText += `\nUser's Self-Declared Dashboard Projects:\n${input.dashboardProjects.map(p => `- ${p.title}${p.description ? ': ' + p.description : ''}`).join('\n')}.`;
+      } else {
+          dashboardBioPromptText += `\nUser's Self-Declared Dashboard Projects: None provided.`;
+      }
+      if (!input.dashboardSkills?.length && !input.dashboardProjects?.length) {
+           dashboardBioPromptText += `\nIf no dashboard information is provided, the bio should state: "Could not generate a bio suggestion due to limited dashboard information and issues with GitHub profile access."`;
+      }
+      
+      const fallbackPromptDef = ai.definePrompt({
+          name: 'dashboardOnlyBioPrompt', 
+          input: { schema: z.object({}) }, 
+          output: { schema: z.object({ bioSuggestion: z.string() })},
+          prompt: dashboardBioPromptText,
+      });
+
+      try {
+          const { output: fallbackOutput } = await fallbackPromptDef({});
+          if (fallbackOutput?.bioSuggestion) {
+              console.log('[suggestProfileEnhancementsFlow] Fallback bio generated:', fallbackOutput.bioSuggestion);
+              
+              let finalSkillSuggestions = result?.skillSuggestions || [];
+              if (gitHubFetchProblem && input.dashboardSkills?.length) {
+                  finalSkillSuggestions = input.dashboardSkills; // Use dashboard skills if GitHub failed
+              } else if (gitHubFetchProblem) {
+                  finalSkillSuggestions = []; // Clear skills if GitHub failed and no dashboard skills
+              }
+
+              result = {
+                  bioSuggestion: fallbackOutput.bioSuggestion,
+                  skillSuggestions: finalSkillSuggestions, 
+              };
+          }
+      } catch (fallbackError: any) {
+          console.error('[suggestProfileEnhancementsFlow] Error during fallback bio generation:', fallbackError.message);
+          // If fallback also fails, 'result' already contains the primary attempt's output (which states the GitHub issue)
+      }
+  }
+
+  console.log('[suggestProfileEnhancementsFlow] Sending final output:', JSON.stringify(result, null, 2));
   return result;
 }
 
-const prompt = ai.definePrompt({
-  name: 'suggestProfileEnhancementsPrompt',
+const primaryPrompt = ai.definePrompt({
+  name: 'suggestProfileEnhancementsPrimaryPrompt',
   input: {schema: SuggestProfileEnhancementsInputSchema},
   output: {schema: SuggestProfileEnhancementsOutputSchema},
   tools: [fetchWebpageContentTool],
@@ -86,16 +139,16 @@ Instructions:
 
 1.  **Fetch GitHub Content**: First, use the 'fetchWebpageContent' tool to get the HTML content of the developer's GitHub profile from 'githubProfileUrl'.
 
-2.  **Handle Fetch Failure (TOOL_ERROR)**:
+2.  **Handle Tool Error (TOOL_ERROR)**:
     If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
-    -   'bioSuggestion': Return a message like: "Failed to fetch GitHub profile content. Tool error: [The exact error message returned by the tool, including the 'TOOL_ERROR:' prefix and any details that follow]. A bio suggestion cannot be fully generated without GitHub profile analysis.{{#if dashboardSkills}} However, a suggestion can be attempted based on your dashboard inputs.{{/if}}"
+    -   'bioSuggestion': Return a message like: "Failed to process GitHub profile content. Tool error: [The exact error message returned by the tool, including 'TOOL_ERROR:' and any details that follow. For example, 'Tool error: TOOL_ERROR: Detected login page content...']. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} A suggestion based on dashboard inputs may be attempted separately.{{/if}}"
     -   'skillSuggestions': Return an empty array.
-    Do not proceed with further analysis of GitHub content if fetching failed with a TOOL_ERROR.
+    Do not proceed with further analysis of GitHub content if the tool reported a TOOL_ERROR.
 
-3.  **Handle Unusable GitHub Content (Not a TOOL_ERROR)**:
-    If the fetched GitHub content is NOT a TOOL_ERROR, but it appears to be a login page (e.g., contains "Sign in to GitHub", "Username or email address", "Password"), an error page (e.g., "Page not found"), or is unusually short (e.g. less than 500 characters) AND lacks typical public profile information (like repository lists, user bio, or contribution activity graphs):
-    -   'bioSuggestion': Return a message like: "The content fetched from your GitHub URL ({{{githubProfileUrl}}}) does not appear to be a valid public profile. For example, it might be missing a clear section for repositories, a user bio, or includes phrases typical of a login/error page. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} However, a suggestion can be attempted based on your dashboard inputs.{{/if}}"
-    -   'skillSuggestions': Return an empty array (skills cannot be derived from this GitHub content).
+3.  **Handle Very Short/Uninformative GitHub Content (Not a TOOL_ERROR)**:
+    If the fetched GitHub content is NOT a TOOL_ERROR, but it is unusually short (e.g. less than 500 characters) AND lacks clear indicators of projects, repositories, or typical profile information (like a user bio, contribution graph, or repository list):
+    -   'bioSuggestion': Return a message like: "The fetched content from the GitHub URL ({{{githubProfileUrl}}}) is very short and does not appear to contain sufficient information for analysis (e.g., missing repository list, user bio, or contribution activity). Please verify the URL points to a public, populated profile. GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} A suggestion based on dashboard inputs may be attempted separately.{{/if}} Actual content snippet (first 100 chars): [First 100 characters of fetched content]."
+    -   'skillSuggestions': Return an empty array (skills cannot be derived from this sparse GitHub content).
     Do not proceed with further analysis of GitHub content if it's of this nature.
 
 4.  **Generate Suggestions (If GitHub content is usable OR if dashboard inputs are available for fallback):**
@@ -103,17 +156,18 @@ Instructions:
     *   **Bio Suggestion ('bioSuggestion'):**
         -   Craft a concise and engaging professional bio, **written in the first person** (e.g., "I am a...", "My experience includes...", "I am passionate about..."). Avoid phrases like "This individual is..." or "The user is...".
         -   The bio should be around 2-3 sentences long.
-        -   **If GitHub content was successfully fetched, is informative, and not flagged as unusable in step 3**:
+        -   **If GitHub content was successfully fetched, is informative, and not flagged as unusable in step 2 or 3**:
             -   Prioritize insights from the GitHub content (technical achievements, project highlights, key contributions, programming languages used frequently).
             -   Integrate 'dashboardSkills' to highlight areas of expertise the user wants to emphasize.
             -   Incorporate noteworthy aspects from 'dashboardProjects' (titles and descriptions).
-        -   **If GitHub content was NOT usable (due to TOOL_ERROR or unusable content as per step 2 or 3), OR if usable GitHub content is very minimal**:
-            -   Craft the best possible first-person bio using ONLY the 'dashboardSkills' and 'dashboardProjects'. Make it sound natural and professional. Do not explicitly state that the bio is based only on dashboard information unless no dashboard information is provided.
+            -   Example: "I am a software engineer with experience in building scalable web applications using React and Node.js. My work on Project X, showcased on GitHub, demonstrates my ability to deliver impactful solutions. I'm also proficient in Python and enjoy exploring new cloud technologies."
+        -   **If (GitHub content was NOT usable due to TOOL_ERROR or unusable content as per step 2 or 3) OR (usable GitHub content is very minimal), AND (dashboard inputs are available)**:
+            -   The primary bio suggestion here should reflect the GitHub issue as per step 2 or 3. A separate fallback mechanism outside this prompt will attempt a dashboard-only bio. So, this prompt path should only return the error/unusable content message.
         -   If, after considering all available sources (GitHub, dashboard), there is truly insufficient information for a meaningful bio (e.g., GitHub fetch failed/unusable AND no dashboard inputs), then 'bioSuggestion' should state: "Could not generate a bio suggestion due to limited information from your GitHub profile and dashboard inputs."
 
     *   **Skill Suggestions ('skillSuggestions'):**
         -   **If GitHub content was successfully fetched, is informative, and not flagged as unusable in step 3**:
-            -   Primarily identify skills from the GitHub content (repository languages, project READMEs, user's GitHub bio text). Look for specific programming languages, frameworks, libraries, and tools.
+            -   Primarily identify skills from the GitHub content. Look for specific programming languages (e.g., JavaScript, Python), frameworks/libraries (e.g., React, Django, TensorFlow), tools (e.g., Docker, Kubernetes, Git), and platforms (e.g., AWS, Azure) mentioned in repository names, READMEs, code files (if snippets are available/analyzable), or the user's GitHub bio text.
             -   Complement and consolidate these with any 'dashboardSkills' provided. Aim for a unified list, avoiding redundancy.
         -   **Otherwise (GitHub content unusable or failed to fetch)**:
              -  If 'dashboardSkills' are provided, return those as 'skillSuggestions'.
@@ -124,75 +178,16 @@ Format your output as a JSON object matching the defined schema.
 `,
 });
 
-const suggestProfileEnhancementsFlow = ai.defineFlow(
+const suggestProfileEnhancementsPrimaryFlow = ai.defineFlow(
   {
-    name: 'suggestProfileEnhancementsFlow',
+    name: 'suggestProfileEnhancementsPrimaryFlow',
     inputSchema: SuggestProfileEnhancementsInputSchema,
     outputSchema: SuggestProfileEnhancementsOutputSchema,
   },
   async input => {
-    console.log('[suggestProfileEnhancementsFlow] Input to primary prompt:', JSON.stringify(input, null, 2));
-    const {output: primaryOutput} = await prompt(input); 
-    console.log('[suggestProfileEnhancementsFlow] Output from primary prompt:', JSON.stringify(primaryOutput, null, 2));
-
-    // Check if the primary attempt indicated GitHub fetch failure or unusable content, AND dashboard inputs are available
-    const gitHubFetchProblem = primaryOutput?.bioSuggestion?.includes("Tool error: TOOL_ERROR:") || 
-                               primaryOutput?.bioSuggestion?.includes("does not appear to be a valid public profile");
-
-    if (gitHubFetchProblem && (input.dashboardSkills?.length || input.dashboardProjects?.length)) {
-        console.log('[suggestProfileEnhancementsFlow] GitHub fetch problematic. Attempting fallback bio generation using dashboard inputs.');
-        
-        // Construct a focused prompt for dashboard-only bio
-        let dashboardBioPromptText = `Based *only* on the following user-declared information, write a concise, engaging professional bio in the first person (e.g., "I am a...", "I specialize in...") (2-3 sentences). Make it sound natural. Do not mention that this bio is based on dashboard information.`;
-        if (input.dashboardSkills?.length) {
-            dashboardBioPromptText += `\nUser's Self-Declared Dashboard Skills: ${input.dashboardSkills.join(', ')}.`;
-        } else {
-            dashboardBioPromptText += `\nUser's Self-Declared Dashboard Skills: None provided.`;
-        }
-        if (input.dashboardProjects?.length) {
-            dashboardBioPromptText += `\nUser's Self-Declared Dashboard Projects:\n${input.dashboardProjects.map(p => `- ${p.title}${p.description ? ': ' + p.description : ''}`).join('\n')}.`;
-        } else {
-            dashboardBioPromptText += `\nUser's Self-Declared Dashboard Projects: None provided.`;
-        }
-        if (!input.dashboardSkills?.length && !input.dashboardProjects?.length) {
-             dashboardBioPromptText += `\nIf no dashboard information is provided, the bio should state: "Could not generate a bio suggestion due to limited dashboard information and issues with GitHub profile access."`;
-        }
-        
-        const fallbackPromptDef = ai.definePrompt({
-            name: 'dashboardOnlyBioPrompt', 
-            input: { schema: z.object({}) }, // No input needed beyond the prompt itself
-            output: { schema: z.object({ bioSuggestion: z.string() })},
-            prompt: dashboardBioPromptText,
-            // Ensure this fallback prompt uses a model capable of good text generation
-            // If the default model in ai.ts is already 'gemini-2.0-flash' or similar, this might not be needed
-            // model: 'googleai/gemini-pro', // Or your preferred text generation model if different
-        });
-
-        try {
-            const { output: fallbackOutput } = await fallbackPromptDef({});
-            if (fallbackOutput?.bioSuggestion) {
-                console.log('[suggestProfileEnhancementsFlow] Fallback bio generated:', fallbackOutput.bioSuggestion);
-                // Preserve skill suggestions from the primary attempt if they were based on dashboard skills, 
-                // or ensure it's empty if it was meant to be due to GitHub issues.
-                let finalSkillSuggestions = primaryOutput?.skillSuggestions || [];
-                if (gitHubFetchProblem && input.dashboardSkills?.length) {
-                    finalSkillSuggestions = input.dashboardSkills;
-                } else if (gitHubFetchProblem) {
-                    finalSkillSuggestions = [];
-                }
-
-                return {
-                    bioSuggestion: fallbackOutput.bioSuggestion,
-                    skillSuggestions: finalSkillSuggestions, 
-                };
-            }
-        } catch (fallbackError: any) {
-            console.error('[suggestProfileEnhancementsFlow] Error during fallback bio generation:', fallbackError.message);
-            // If fallback also fails, return the original message (which already indicates the GitHub problem)
-            return primaryOutput!; 
-        }
-    }
-    // If no GitHub fetch problem, or if there was a problem but no dashboard data for fallback, return primary output.
+    console.log('[suggestProfileEnhancementsPrimaryFlow] Input to primary prompt:', JSON.stringify(input, null, 2));
+    const {output: primaryOutput} = await primaryPrompt(input); 
+    console.log('[suggestProfileEnhancementsPrimaryFlow] Output from primary prompt:', JSON.stringify(primaryOutput, null, 2));
     return primaryOutput!;
   }
 );
