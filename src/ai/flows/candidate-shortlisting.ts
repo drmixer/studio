@@ -62,10 +62,18 @@ If the 'fetchWebpageContent' tool returns a string starting with "TOOL_ERROR:":
 Do not attempt to analyze further if the tool reported any TOOL_ERROR.
 
 Otherwise (if the tool provided content without reporting a TOOL_ERROR):
-Analyze the fetched HTML content thoroughly. Based *only* on the information present in the successfully fetched HTML content, provide the following:
-- summary: A concise summary of the candidate. Focus on their bio (if present), key projects mentioned, contribution patterns, or anything else that gives a good overview from the fetched content. If the content appears to be a valid HTML page but lacks specific GitHub profile elements (e.g., no repository list found, no user bio text), state that the content was fetched but seems incomplete or not a standard profile structure.
-- techStack: A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content. If no specific skills can be confidently identified from the content, this should be an empty array.
-- flaggedItems: A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If the content quality is low despite the tool not erroring (e.g., missing key sections), one flagged item should reflect this, like "The fetched content, while not a tool error, appears to lack typical GitHub profile sections. Analysis might be limited." If nothing specific stands out in good content, state that.
+Carefully examine the fetched HTML content.
+- First, determine if the content *semantically appears to be a valid, populated public GitHub profile page*. Look for key indicators like a list of repositories, a user bio section, contribution activity sections, or identifiable GitHub UI elements.
+- If the content, despite not being a tool error, does NOT appear to be a valid or informative public profile (e.g., it's missing a clear repository list, a user bio, seems to be a generic error/redirect page, or is otherwise too sparse for meaningful analysis):
+    - Your 'summary' should state: "I am unable to provide a summary of the candidate's GitHub profile because I encountered a problem while trying to fetch the content from the provided URL ({{{githubProfileUrl}}}). The fetched content does not appear to be a valid or informative public GitHub profile page. For example, it might be missing a clear repository list, a user bio, or includes phrases typical of a login/error page. Please verify the URL and ensure the profile is public and populated. Actual content snippet indicative of the issue (first 100 chars): [the first 100 characters of the problematic content, cleaned of newlines for readability]".
+    - Your 'techStack' should be an empty array.
+    - One 'flaggedItem' should be: "Fetched content from {{{githubProfileUrl}}} appears unusable. It might be a login/error page or lacks essential profile sections (like repositories or bio). Please verify the URL points to a public, populated GitHub user profile."
+    Do not attempt to generate a detailed summary or tech stack if the content is deemed semantically unusable.
+
+- If and ONLY IF the content *does* appear to be a valid, informative public GitHub profile page:
+    - 'summary': A concise summary of the candidate based *only* on the fetched GitHub profile content. Focus on their bio (if present), key projects mentioned, contribution patterns, or anything else that gives a good overview.
+    - 'techStack': A list of technologies (programming languages, frameworks, libraries, tools) explicitly mentioned or clearly inferable from project descriptions, repository names, or profile text in the fetched content. If no specific skills can be confidently identified, this should be an empty array.
+    - 'flaggedItems': A list of 2-3 particularly interesting or noteworthy items (positive or areas of potential concern if apparent) that a recruiter should pay attention to. These should be based on the fetched content and phrased as complete sentences. If nothing specific stands out in good content, state that.
 
 Format your output as a JSON object matching the defined schema.
   `,
@@ -84,3 +92,4 @@ const candidateShortlistingFlow = ai.defineFlow(
     return output!;
   }
 );
+

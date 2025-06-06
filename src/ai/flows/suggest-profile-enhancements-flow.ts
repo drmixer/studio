@@ -145,22 +145,30 @@ Instructions:
     -   'skillSuggestions': Return an empty array.
     Do not proceed with further analysis of GitHub content if the tool reported a TOOL_ERROR.
 
-3.  **Generate Suggestions (If GitHub content was provided by the tool without a TOOL_ERROR):**
+3.  **Analyze Fetched GitHub Content (If no TOOL_ERROR from step 2):**
+    Carefully examine the fetched HTML content.
+    - First, determine if the content *semantically appears to be a valid, populated public GitHub profile page*. Look for key indicators like a list of repositories, a user bio section, contribution activity sections, or identifiable GitHub UI elements.
+    - If the content, despite not being a tool error, does NOT appear to be a valid or informative public profile (e.g., it's missing a clear repository list, a user bio, seems to be a generic error/redirect page, or is otherwise too sparse for meaningful analysis):
+        -   'bioSuggestion': Return a message like: "Failed to analyze the GitHub profile from {{{githubProfileUrl}}}. The fetched content does not seem to be a valid or informative public profile page (e.g., missing key sections like repositories or bio, or appears to be a login/error page). GitHub-based suggestions cannot be generated.{{#if dashboardSkills}} A suggestion based on dashboard inputs may be attempted separately.{{/if}} Snippet indicative of issue (first 100 chars): [the first 100 characters of the problematic content, cleaned of newlines for readability]"
+        -   'skillSuggestions': Return an empty array.
+        Do not proceed with GitHub-based suggestions if the content is deemed semantically unusable.
+
+4.  **Generate Suggestions (If GitHub content was valid and informative as per step 3, or if GitHub analysis was skipped/failed and dashboard data is available):**
 
     *   **Bio Suggestion ('bioSuggestion'):**
         -   Craft a concise and engaging professional bio, **written in the first person** (e.g., "I am a...", "My experience includes...", "I am passionate about..."). Avoid phrases like "This individual is..." or "The user is...".
         -   The bio should be around 2-3 sentences long.
-        -   Prioritize insights from the GitHub content (technical achievements, project highlights, key contributions, programming languages used frequently).
-        -   Integrate 'dashboardSkills' to highlight areas of expertise the user wants to emphasize.
+        -   If valid GitHub content was analyzed, prioritize insights from it (technical achievements, project highlights, key contributions).
+        -   Seamlessly integrate 'dashboardSkills' to highlight areas of expertise.
         -   Incorporate noteworthy aspects from 'dashboardProjects' (titles and descriptions).
-        -   Example: "I am a software engineer with experience in building scalable web applications using React and Node.js. My work on Project X, showcased on GitHub, demonstrates my ability to deliver impactful solutions. I'm also proficient in Python and enjoy exploring new cloud technologies."
-        -   If the GitHub content, despite not being a tool error, appears to be incomplete or lacks typical profile sections (e.g., no clear repository list, no user bio text found in the HTML), the bio should acknowledge this limitation while still trying to use available dashboard data if present. For example: "While my GitHub profile content couldn't be fully analyzed, I am a [role] specializing in [dashboard skills]. My projects include [dashboard projects]."
+        -   Example (with good GitHub data): "I am a software engineer with experience in building scalable web applications using React and Node.js. My work on Project X, showcased on GitHub, demonstrates my ability to deliver impactful solutions. I'm also proficient in Python and enjoy exploring new cloud technologies."
+        -   Example (if GitHub data was unusable/skipped, relying on dashboard): "I am a [role, e.g., software developer] specializing in [key dashboard skills]. My projects include [notable dashboard project titles], demonstrating my capabilities in [relevant areas]."
         -   If, after considering all available sources (GitHub, dashboard), there is truly insufficient information for a meaningful bio (e.g., GitHub content unusable AND no dashboard inputs), then 'bioSuggestion' should state: "Could not generate a bio suggestion due to limited information from your GitHub profile and dashboard inputs."
 
     *   **Skill Suggestions ('skillSuggestions'):**
-        -   Primarily identify skills from the GitHub content. Look for specific programming languages (e.g., JavaScript, Python), frameworks/libraries (e.g., React, Django, TensorFlow), tools (e.g., Docker, Kubernetes, Git), and platforms (e.g., AWS, Azure) mentioned in repository names, READMEs, code files (if snippets are available/analyzable), or the user's GitHub bio text.
+        -   If valid GitHub content was analyzed, primarily identify skills from it. Look for specific programming languages, frameworks/libraries, tools, and platforms.
         -   Complement and consolidate these with any 'dashboardSkills' provided. Aim for a unified list, avoiding redundancy.
-        -   If the GitHub content is present but seems to lack clear skill indicators, rely more heavily on 'dashboardSkills'.
+        -   If GitHub content was unusable/skipped, 'skillSuggestions' should be based solely on 'dashboardSkills'.
         -   If no specific technical skills can be clearly identified from any source, 'skillSuggestions' should be an empty array. Do not list generic skills like "Problem Solving" if no specific technical evidence is found. Focus on concrete technical skills.
 
 Format your output as a JSON object matching the defined schema.
@@ -180,3 +188,4 @@ const suggestProfileEnhancementsPrimaryFlow = ai.defineFlow(
     return primaryOutput!;
   }
 );
+
