@@ -22,10 +22,10 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio (2-3 sentences) based on the GitHub profile.'),
+    .describe('A suggested professional bio (2-3 sentences) based on the information found at the GitHub profile URL.'),
   skillSuggestions: z
     .array(z.string())
-    .describe('A list of key technical skills inferred from the GitHub profile.'),
+    .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL.'),
 });
 export type SuggestProfileEnhancementsOutput = z.infer<typeof SuggestProfileEnhancementsOutputSchema>;
 
@@ -38,13 +38,13 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestProfileEnhancementsInputSchema},
   output: {schema: SuggestProfileEnhancementsOutputSchema},
   prompt: `You are an AI assistant helping developers enhance their GitTalent profile.
-Based on the provided GitHub profile URL, analyze their public repositories, contributions, and profile information.
+Based on the provided GitHub profile URL, analyze the public repositories, contributions, and profile information found at that URL.
 
-GitHub Profile: {{{githubProfileUrl}}}
+GitHub Profile URL: {{{githubProfileUrl}}}
 
-Generate the following:
-1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent.
-2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile, pinned repositories, and recent activity. Provide a diverse list if possible.
+Generate the following based on the content available at the URL:
+1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the profile content.
+2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile content, pinned repositories, and recent activity found at the URL. Provide a diverse list if possible.
 
 Format your output as a JSON object matching the defined schema.
 `,
@@ -63,4 +63,3 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
     return output!;
   }
 );
-

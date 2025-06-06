@@ -25,14 +25,14 @@ const CandidateShortlistingOutputSchema = z.object({
   summary: z
     .string()
     .describe(
-      'A summary of the candidate, including trending repositories, and repeated patterns of commits.'
+      'A summary of the candidate, including trending repositories, and repeated patterns of commits, based on information found at the GitHub profile URL.'
     ),
   techStack: z
     .array(z.string())
-    .describe('The tech stack of the candidate, infered from their repositories.'),
+    .describe('The tech stack of the candidate, inferred from their repositories visible at the GitHub profile URL.'),
   flaggedItems: z
     .array(z.string())
-    .describe('A list of items to flag to the recruiter to help screen the candidate.'),
+    .describe('A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences.'),
 });
 export type CandidateShortlistingOutput = z.infer<typeof CandidateShortlistingOutputSchema>;
 
@@ -44,14 +44,14 @@ const prompt = ai.definePrompt({
   name: 'candidateShortlistingPrompt',
   input: {schema: CandidateShortlistingInputSchema},
   output: {schema: CandidateShortlistingOutputSchema},
-  prompt: `You are an AI-powered recruiting assistant. Your job is to analyze a github profile of a candidate and create a short list summary to help the recruiter screen the candidate.
+  prompt: `You are an AI-powered recruiting assistant. Your job is to analyze the content and public information found at a given GitHub profile URL for a candidate and create a short list summary to help the recruiter screen the candidate.
 
-  Analyze the following GitHub profile: {{{githubProfileUrl}}}
+  Analyze the information available at the following GitHub profile URL: {{{githubProfileUrl}}}
   \n
   Your output should be formatted as a JSON object with the following fields:
-  - summary: A short summary of the candidate, including trending repositories, and repeated patterns of commits.
-  - techStack: The tech stack of the candidate, infered from their repositories.
-  - flaggedItems: A list of items to flag to the recruiter to help screen the candidate.  These should be in complete sentences.
+  - summary: A short summary of the candidate, including trending repositories and repeated patterns of commits, based on the information at the provided URL.
+  - techStack: The tech stack of the candidate, inferred from their repositories visible at the provided URL.
+  - flaggedItems: A list of items to flag to the recruiter to help screen the candidate, based on the content of the GitHub profile. These should be in complete sentences.
   `,
 });
 
@@ -68,4 +68,3 @@ const candidateShortlistingFlow = ai.defineFlow(
     return output!;
   }
 );
-
