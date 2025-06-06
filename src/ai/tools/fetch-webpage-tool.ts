@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview A Genkit tool to fetch the text content of a webpage.
  *
@@ -43,7 +42,7 @@ export const fetchWebpageContentTool = ai.defineTool(
       const textContent = await response.text();
       console.log(`[fetchWebpageContentTool] Successfully fetched content from ${url}. Length: ${textContent.length}`);
       
-      const MAX_CONTENT_LENGTH = 20000; // Increased slightly, LLMs can handle a fair bit of HTML.
+      const MAX_CONTENT_LENGTH = 20000;
       if (textContent.length > MAX_CONTENT_LENGTH) {
         console.warn(`[fetchWebpageContentTool] Content from ${url} is very long (${textContent.length} chars). Truncating to ${MAX_CONTENT_LENGTH} chars.`);
         return textContent.substring(0, MAX_CONTENT_LENGTH);
