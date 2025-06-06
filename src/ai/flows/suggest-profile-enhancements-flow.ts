@@ -23,10 +23,10 @@ export type SuggestProfileEnhancementsInput = z.infer<typeof SuggestProfileEnhan
 const SuggestProfileEnhancementsOutputSchema = z.object({
   bioSuggestion: z
     .string()
-    .describe('A suggested professional bio (2-3 sentences) based on the information found at the GitHub profile URL. If fetching fails, this will contain the error.'),
+    .describe('A suggested professional bio (2-3 sentences) based on the information found at the GitHub profile URL. If fetching fails, this will contain the error. If content is fetched but insufficient for a bio, it will state that.'),
   skillSuggestions: z
     .array(z.string())
-    .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL.'),
+    .describe('A list of key technical skills inferred from the content visible at the GitHub profile URL. This should be empty if no specific skills are found.'),
 });
 export type SuggestProfileEnhancementsOutput = z.infer<typeof SuggestProfileEnhancementsOutputSchema>;
 
@@ -55,8 +55,8 @@ Do not attempt to analyze further if fetching failed.
 
 Otherwise, if HTML content is successfully fetched, analyze it thoroughly.
 Based *only* on the information present in the successfully fetched HTML content, generate the following:
-1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the fetched content.
-2. A list of key technical skills (programming languages, frameworks, significant libraries, tools) prominently visible or inferable from their profile text, pinned repositories, and project descriptions within the fetched content.
+1. A concise and engaging professional bio (around 2-3 sentences) suitable for a talent platform. Focus on accomplishments and key technologies if apparent from the fetched content (e.g., from the user's bio text, descriptions of pinned repositories). If the fetched content is minimal or provides no clear information for a bio, your 'bioSuggestion' should state: "Could not generate a bio suggestion due to limited information in the fetched profile content."
+2. A list of key technical skills (programming languages, frameworks, significant libraries, tools). Look for these in repository language statistics, project READMEs, titles, descriptions, and the user's profile text within the fetched content. If no specific technical skills can be clearly identified from the fetched content, your 'skillSuggestions' array should be empty. Do not list generic skills if they are not directly supported by the fetched content.
 
 Format your output as a JSON object matching the defined schema.
 `,
