@@ -50,10 +50,13 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
+    console.log("DashboardPage: useEffect triggered. Loading:", loading, "User:", user ? user.id : null);
     if (!loading && !user) {
+      console.log("DashboardPage: Not loading and no user, redirecting to /auth.");
       router.replace('/auth');
     }
     if (user) {
+      console.log("DashboardPage: User detected, setting profile form states.");
       setGithubUrl(user.githubProfileUrl || "");
       setBio(user.bio || "");
       setSkills(user.skills || []);
@@ -250,6 +253,7 @@ export default function DashboardPage() {
   ];
 
   if (loading || !user) {
+    console.log("DashboardPage: Rendering Loader2. Loading state:", loading, "User:", user ? user.id : null);
     return (
       <div className="min-h-[calc(100vh-theme(spacing.16)-theme(spacing.32))] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
