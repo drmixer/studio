@@ -74,11 +74,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Loaded' : 'MISSING!',
             authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? 'Loaded' : 'MISSING!',
             projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'Loaded' : 'MISSING!',
+            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? 'Loaded' : 'MISSING!',
+            messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? 'Loaded' : 'MISSING!',
+            appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? 'Loaded' : 'MISSING!',
           });
           setError(`Failed to load user profile: ${docError.message}. This can be due to network issues, incorrect Firebase setup (check .env.local and restart server), or Firestore rules. Check browser console for details.`);
           setUser(null); 
-          // Consider if auto sign-out is desired here or if user should see a persistent error state.
-          // For now, setting user to null and showing error.
         }
       } else {
         setUser(null);
@@ -136,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await firebaseSignOut(auth);
       router.push('/auth');
-    } catch (e: any) {
+    } catch (e: any) { 
       setError(e.message || "Failed to sign out.");
     } finally {
       setLoading(false);
