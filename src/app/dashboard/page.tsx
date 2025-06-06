@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon, Bot, Trash2, PlusCircle, BriefcaseBusiness, Lightbulb, Sparkles } from "lucide-react";
+import { BarChartHorizontalBig, Filter, Users, Briefcase, Loader2, Github, Link as LinkIcon, Bot, Trash2, PlusCircle, BriefcaseBusiness, Lightbulb, Sparkles, Wand2 } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { candidateShortlisting, type CandidateShortlistingOutput } from "@/ai/flows/candidate-shortlisting";
+import { suggestProfileEnhancements, type SuggestProfileEnhancementsOutput } from "@/ai/flows/suggest-profile-enhancements-flow";
 import { CandidateCard } from "./components/CandidateCard";
 
 interface Project {
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>(user?.projects || []);
   const [currentProject, setCurrentProject] = useState<{title: string, url: string, description: string}>({title: "", url: "", description: ""});
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isSuggestingProfile, setIsSuggestingProfile] = useState(false);
 
 
   useEffect(() => {
@@ -120,6 +122,33 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSuggestProfileEnhancements = async () => {
+    if (!user?.githubProfileUrl) {
+      toast({ title: "No GitHub Profile Linked", description: "Please link your GitHub profile first to get AI suggestions.", variant: "destructive" });
+      return;
+    }
+    setIsSuggestingProfile(true);
+    toast({ title: "Generating Profile Suggestions...", description: "AI is analyzing your GitHub profile. This may take a moment." });
+    try {
+      const { bioSuggestion, skillSuggestions } = await suggestProfileEnhancements({ githubProfileUrl: user.githubProfileUrl });
+      setBio(bioSuggestion); // Update bio state, user can then save it
+      toast({ 
+        title: "AI Suggestions Ready!", 
+        description: "Bio updated with suggestion. Check console for skill suggestions. Remember to save your bio!",
+        duration: 7000 
+      });
+      console.log("AI Skill Suggestions:", skillSuggestions);
+      // For a more advanced UI, you could display these skillSuggestions and allow the user to add them one by one.
+      // For now, we'll update the bio and log skills. User can save bio and manually add skills.
+    } catch (e: any) {
+      const errorMessage = e.message || "Failed to get AI suggestions. Please try again.";
+      toast({ title: "Suggestion Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsSuggestingProfile(false);
+    }
+  };
+
+
   const handleSaveBio = async () => {
     if (!user) return;
     setIsUpdatingProfile(true);
@@ -135,15 +164,15 @@ export default function DashboardPage() {
 
   const handleAddSkill = async () => {
     if (!user || !currentSkill.trim()) return;
-    const newSkills = [...skills, currentSkill.trim()];
-    setSkills(newSkills); // Optimistic update
+    const newSkills = [...new Set([...skills, currentSkill.trim()])]; // Ensure unique skills
+    setSkills(newSkills); 
     setCurrentSkill("");
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ skills: newSkills });
       toast({ title: "Skill Added", description: `${currentSkill.trim()} has been added to your skills.` });
     } catch (error) {
-      setSkills(skills); // Revert on error
+      setSkills(skills.filter(s => s !== currentSkill.trim())); // Revert on error
       toast({ title: "Update Failed", description: "Could not add skill. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -154,13 +183,13 @@ export default function DashboardPage() {
     if (!user) return;
     const oldSkills = [...skills];
     const newSkills = skills.filter(skill => skill !== skillToRemove);
-    setSkills(newSkills); // Optimistic update
+    setSkills(newSkills); 
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ skills: newSkills });
       toast({ title: "Skill Removed", description: `${skillToRemove} has been removed from your skills.` });
     } catch (error) {
-      setSkills(oldSkills); // Revert on error
+      setSkills(oldSkills); 
       toast({ title: "Update Failed", description: "Could not remove skill. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -182,14 +211,14 @@ export default function DashboardPage() {
 
     const newProject: Project = { ...currentProject, id: Date.now().toString() };
     const newProjects = [...projects, newProject];
-    setProjects(newProjects); // Optimistic update
+    setProjects(newProjects); 
     setCurrentProject({title: "", url: "", description: ""});
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ projects: newProjects });
       toast({ title: "Project Added", description: `${newProject.title} has been added to your portfolio.` });
     } catch (error) {
-      setProjects(projects.filter(p => p.id !== newProject.id)); // Revert on error
+      setProjects(projects.filter(p => p.id !== newProject.id)); 
       toast({ title: "Update Failed", description: "Could not add project. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -200,14 +229,14 @@ export default function DashboardPage() {
     if (!user) return;
     const oldProjects = [...projects];
     const newProjects = projects.filter(project => project.id !== projectIdToRemove);
-    setProjects(newProjects); // Optimistic update
+    setProjects(newProjects); 
     setIsUpdatingProfile(true);
     try {
       await updateUserProfile({ projects: newProjects });
       const removedProject = oldProjects.find(p => p.id === projectIdToRemove);
       toast({ title: "Project Removed", description: `${removedProject?.title || 'Project'} has been removed.` });
     } catch (error) {
-      setProjects(oldProjects); // Revert on error
+      setProjects(oldProjects); 
       toast({ title: "Update Failed", description: "Could not remove project. Please try again.", variant: "destructive" });
     } finally {
       setIsUpdatingProfile(false);
@@ -228,7 +257,7 @@ export default function DashboardPage() {
     );
   }
 
-  const combinedLoading = loading || isLinkingGithub || isAnalyzingSelf || isUpdatingProfile;
+  const combinedLoading = loading || isLinkingGithub || isAnalyzingSelf || isUpdatingProfile || isSuggestingProfile;
 
   return (
     <div className="py-8 md:py-12 bg-secondary/30 min-h-screen">
@@ -324,7 +353,7 @@ export default function DashboardPage() {
                         Current linked profile: <a href={user.githubProfileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.githubProfileUrl}</a>
                       </p>
                     )}
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
                         <Button type="submit" className="btn-gradient" disabled={combinedLoading}>
                         {isLinkingGithub ? <Loader2 className="animate-spin mr-2" /> : <LinkIcon className="mr-2 h-4 w-4" />}
                         {user.githubProfileUrl ? "Update GitHub Profile" : "Link GitHub Profile"}
@@ -335,10 +364,16 @@ export default function DashboardPage() {
                             Analyze My Profile
                         </Button>
                         )}
+                        {user.githubProfileUrl && (
+                          <Button type="button" variant="outline" onClick={handleSuggestProfileEnhancements} disabled={combinedLoading}>
+                            {isSuggestingProfile ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                            AI: Suggest Bio & Skills
+                          </Button>
+                        )}
                     </div>
                   </form>
                   <p className="mt-6 text-sm text-muted-foreground">
-                    Linking your GitHub profile allows GitTalent to showcase your projects, contributions, and skills to potential recruiters and get an AI analysis of your public profile.
+                    Linking your GitHub profile allows GitTalent to showcase your projects, contributions, and skills to potential recruiters and get an AI analysis of your public profile. AI suggestions can help you craft a compelling profile.
                   </p>
               </CardContent>
             </Card>
@@ -361,11 +396,10 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Professional Summary/Bio Card */}
             <Card className="shadow-lg overflow-hidden glassmorphic">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center"><Sparkles className="h-5 w-5 mr-2 text-primary" /> Professional Summary</CardTitle>
-                <CardDescription>Craft a compelling bio to introduce yourself to recruiters.</CardDescription>
+                <CardDescription>Craft a compelling bio to introduce yourself. Use the "AI: Suggest Bio & Skills" button above for help!</CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -376,17 +410,16 @@ export default function DashboardPage() {
                   className="mb-4"
                   disabled={combinedLoading}
                 />
-                <Button onClick={handleSaveBio} disabled={combinedLoading} className="btn-gradient">
-                  {isUpdatingProfile && bio === user.bio ? <Loader2 className="animate-spin mr-2" /> : null} Save Bio
+                <Button onClick={handleSaveBio} disabled={combinedLoading || (bio === user.bio && !isSuggestingProfile)} className="btn-gradient">
+                  {isUpdatingProfile && bio === user.bio && !isSuggestingProfile ? <Loader2 className="animate-spin mr-2" /> : null} Save Bio
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Skills Card */}
             <Card className="shadow-lg overflow-hidden glassmorphic">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center"><Lightbulb className="h-5 w-5 mr-2 text-primary" /> Skills & Expertise</CardTitle>
-                <CardDescription>Highlight your technical skills and areas of expertise.</CardDescription>
+                <CardDescription>Highlight your technical skills. AI suggestions based on your GitHub can appear in your browser's console.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2 mb-4">
@@ -394,7 +427,7 @@ export default function DashboardPage() {
                     placeholder="Add a skill (e.g., React)"
                     value={currentSkill}
                     onChange={(e) => setCurrentSkill(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                    onKeyPress={(e) => e.key === 'Enter' && !combinedLoading && currentSkill.trim() && handleAddSkill()}
                     disabled={combinedLoading}
                   />
                   <Button onClick={handleAddSkill} disabled={combinedLoading || !currentSkill.trim()} variant="outline">
@@ -412,11 +445,10 @@ export default function DashboardPage() {
                       </Badge>
                     ))}
                   </div>
-                ) : <p className="text-sm text-muted-foreground italic">No skills added yet.</p>}
+                ) : <p className="text-sm text-muted-foreground italic">No skills added yet. Link GitHub and use AI suggestions, or add them manually!</p>}
               </CardContent>
             </Card>
 
-            {/* Projects Showcase Card */}
             <Card className="shadow-lg overflow-hidden glassmorphic">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center"><BriefcaseBusiness className="h-5 w-5 mr-2 text-primary" /> Project Showcase</CardTitle>
@@ -481,3 +513,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
