@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview AI-powered candidate shortlisting tool that analyzes GitHub profiles 
+ * @fileOverview AI-powered candidate shortlisting tool that analyzes GitHub profiles
  * using data from the GitHub API to identify and shortlist promising candidates.
  *
  * - candidateShortlisting - A function that handles the candidate shortlisting process.
@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { fetchGitHubProfileApiTool, type GitHubProfileApiOutput } from '@/ai/tools/fetch-github-profile-api-tool';
+import { fetchGitHubProfileApiTool, GitHubProfileApiOutputSchema, type GitHubProfileApiOutput } from '@/ai/tools/fetch-github-profile-api-tool';
 
 const CandidateShortlistingInputSchema = z.object({
   githubProfileUrl: z
@@ -54,7 +54,7 @@ function extractUsernameFromUrl(url: string): string | null {
 
 export async function candidateShortlisting(input: CandidateShortlistingInput): Promise<CandidateShortlistingOutput> {
   console.log('[candidateShortlistingFlow] Received input:', JSON.stringify(input));
-  
+
   const username = extractUsernameFromUrl(input.githubProfileUrl);
   if (!username) {
     const errorMsg = "Invalid GitHub Profile URL. Could not extract username.";
@@ -66,7 +66,7 @@ export async function candidateShortlisting(input: CandidateShortlistingInput): 
       analyzedUsername: input.githubProfileUrl, // Pass original URL if username extraction fails
     };
   }
-  
+
   const result = await candidateShortlistingFlow({ username });
   console.log('[candidateShortlistingFlow] Sending output:', JSON.stringify(result));
   return {...result, analyzedUsername: username };
@@ -137,11 +137,11 @@ const candidateShortlistingFlow = ai.defineFlow(
         analyzedUsername: username,
       };
     }
-    
+
     console.log('[candidateShortlistingFlow] Data from API tool for prompt:', JSON.stringify(profileData, null, 2));
-    
+
     // Pass the structured data to the prompt
-    const {output} = await prompt({ profileData }); 
+    const {output} = await prompt({ profileData });
     console.log('[candidateShortlistingFlow] Output from prompt:', JSON.stringify(output, null, 2));
     return {...output!, analyzedUsername: username };
   }

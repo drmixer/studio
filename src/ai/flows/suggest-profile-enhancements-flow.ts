@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { fetchGitHubProfileApiTool, type GitHubProfileApiOutput } from '@/ai/tools/fetch-github-profile-api-tool';
+import { fetchGitHubProfileApiTool, GitHubProfileApiOutputSchema, type GitHubProfileApiOutput } from '@/ai/tools/fetch-github-profile-api-tool';
 
 const SuggestProfileEnhancementsInputSchema = z.object({
   githubProfileUrl: z
@@ -22,9 +22,9 @@ const SuggestProfileEnhancementsInputSchema = z.object({
     .optional()
     .describe('A list of technical skills the user has added to their GitTalent dashboard profile.'),
   dashboardProjects: z
-    .array(z.object({ 
-      title: z.string().describe("The title of the project."), 
-      description: z.string().optional().describe("The description of the project.") 
+    .array(z.object({
+      title: z.string().describe("The title of the project."),
+      description: z.string().optional().describe("The description of the project.")
     }))
     .optional()
     .describe('A list of projects (title and description) the user has added to their GitTalent dashboard.'),
@@ -59,7 +59,7 @@ function extractUsernameFromUrl(url: string): string | null {
 
 export async function suggestProfileEnhancements(input: SuggestProfileEnhancementsInput): Promise<SuggestProfileEnhancementsOutput> {
   console.log('[suggestProfileEnhancementsFlow] Received input:', JSON.stringify(input, null, 2));
-  
+
   const username = extractUsernameFromUrl(input.githubProfileUrl);
   if (!username) {
     const errorMsg = "Invalid GitHub Profile URL. Could not extract username.";
@@ -73,25 +73,25 @@ export async function suggestProfileEnhancements(input: SuggestProfileEnhancemen
     };
   }
 
-  const result = await suggestProfileEnhancementsPrimaryFlow({ 
-    username, 
-    dashboardSkills: input.dashboardSkills, 
-    dashboardProjects: input.dashboardProjects 
+  const result = await suggestProfileEnhancementsPrimaryFlow({
+    username,
+    dashboardSkills: input.dashboardSkills,
+    dashboardProjects: input.dashboardProjects
   });
-  
+
   // Check if API fetch failed and dashboard data exists for a fallback.
-  const apiFetchProblem = result?.bioSuggestion?.includes("Failed to fetch GitHub profile data via API") || 
+  const apiFetchProblem = result?.bioSuggestion?.includes("Failed to fetch GitHub profile data via API") ||
                           result?.bioSuggestion?.includes("GitHub API error") ||
                           result?.bioSuggestion?.includes("Tool exception");
 
   if (apiFetchProblem && (input.dashboardSkills?.length || input.dashboardProjects?.length)) {
       console.log('[suggestProfileEnhancementsFlow] GitHub API fetch problematic. Attempting fallback bio generation using dashboard inputs.');
       const fallbackResult = await generateFallbackSuggestions(input.dashboardSkills, input.dashboardProjects, result.bioSuggestion);
-      
+
       // Use API skills if available and not an API error, otherwise fallback to dashboard skills
       let finalSkillSuggestions = result.skillSuggestions || [];
       if (apiFetchProblem && input.dashboardSkills?.length) {
-          finalSkillSuggestions = input.dashboardSkills; 
+          finalSkillSuggestions = input.dashboardSkills;
       } else if (apiFetchProblem) {
           finalSkillSuggestions = [];
       }
@@ -108,7 +108,7 @@ export async function suggestProfileEnhancements(input: SuggestProfileEnhancemen
 }
 
 async function generateFallbackSuggestions(
-  dashboardSkills?: string[], 
+  dashboardSkills?: string[],
   dashboardProjects?: Array<{title: string, description?: string}>,
   originalApiError?: string
 ): Promise<{bioSuggestion: string, skillSuggestions: string[]}> {
@@ -130,10 +130,10 @@ async function generateFallbackSuggestions(
     if (!dashboardSkills?.length && !dashboardProjects?.length) {
          dashboardBioPromptText += `\nIf no dashboard information is provided, the bio should state: "Could not generate a bio suggestion due to limited dashboard information and issues with GitHub profile access."`;
     }
-    
+
     const fallbackPromptDef = ai.definePrompt({
-        name: 'dashboardOnlyBioPromptForEnhancements', 
-        input: { schema: z.object({}) }, 
+        name: 'dashboardOnlyBioPromptForEnhancements',
+        input: { schema: z.object({}) },
         output: { schema: z.object({ bioSuggestion: z.string() })},
         prompt: dashboardBioPromptText,
     });
@@ -150,9 +150,9 @@ async function generateFallbackSuggestions(
     } catch (fallbackError: any) {
         console.error('[suggestProfileEnhancementsFlow] Error during fallback bio generation:', fallbackError.message);
     }
-    return { 
-        bioSuggestion: "Could not generate fallback bio.", 
-        skillSuggestions: dashboardSkills || [] 
+    return {
+        bioSuggestion: "Could not generate fallback bio.",
+        skillSuggestions: dashboardSkills || []
     };
 }
 
@@ -167,8 +167,8 @@ const InternalFlowInputSchema = z.object({
 
 const primaryPrompt = ai.definePrompt({
   name: 'suggestProfileEnhancementsApiPrompt',
-  input: { schema: z.object({ 
-      profileData: GitHubProfileApiOutputSchema, 
+  input: { schema: z.object({
+      profileData: GitHubProfileApiOutputSchema,
       dashboardSkills: z.array(z.string()).optional(),
       dashboardProjects: z.array(z.object({ title: z.string(), description: z.string().optional() })).optional(),
   }) },
@@ -257,14 +257,14 @@ const suggestProfileEnhancementsPrimaryFlow = ai.defineFlow(
         analyzedUsername: username,
       };
     }
-    
+
     console.log('[suggestProfileEnhancementsPrimaryFlow] Data from API tool for prompt:', JSON.stringify(profileData, null, 2));
 
-    const {output: primaryOutput} = await primaryPrompt({ 
-        profileData, 
-        dashboardSkills, 
-        dashboardProjects 
-    }); 
+    const {output: primaryOutput} = await primaryPrompt({
+        profileData,
+        dashboardSkills,
+        dashboardProjects
+    });
     console.log('[suggestProfileEnhancementsPrimaryFlow] Output from primary prompt:', JSON.stringify(primaryOutput, null, 2));
     return {...primaryOutput!, analyzedUsername: username };
   }

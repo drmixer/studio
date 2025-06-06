@@ -6,6 +6,8 @@
  * - fetchGitHubProfileApiTool - The tool definition.
  * - GitHubProfileApiInputSchema - Input schema for the tool.
  * - GitHubProfileApiOutputSchema - Output schema for the tool.
+ * - GitHubProfileApiInput - TypeScript type for the input.
+ * - GitHubProfileApiOutput - TypeScript type for the output.
  */
 
 import {ai} from '@/ai/genkit';
