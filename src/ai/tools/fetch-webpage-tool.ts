@@ -51,17 +51,16 @@ export const fetchWebpageContentTool = ai.defineTool(
         return errorText;
       }
       
-      const textContent = await response.text();
+      let textContent = await response.text();
       console.log(`[fetchWebpageContentTool] Fetched content from ${url}. Total length: ${textContent.length}. First 500 chars: START_SNIPPET>>>${textContent.substring(0,500)}<<<END_SNIPPET`);
       
-      const MIN_CONTENT_LENGTH = 15000; // Significantly increased threshold
+      const MIN_CONTENT_LENGTH = 15000; 
       if (textContent.length < MIN_CONTENT_LENGTH) {
         const toolErrorMessage = `TOOL_ERROR: Fetched content too short (length: ${textContent.length} characters, minimum expected: ${MIN_CONTENT_LENGTH}). This likely means the full profile page was not retrieved, or the profile is very sparse. The content started with: "${textContent.substring(0,150).replace(/\n/g, ' ')}..."`;
         console.warn(`[fetchWebpageContentTool] ${toolErrorMessage}`);
         return toolErrorMessage;
       }
 
-      // Check for common login page phrases
       const lowerContent = textContent.toLowerCase();
       const loginPhrases = ["sign in to github", "username or email address", "password", "forgot password?", "create an account"];
       const errorPhrases = ["page not found", "this is not the web page you are looking for", "couldn't find that page", "404 error", "something went wrong"];
@@ -88,7 +87,7 @@ export const fetchWebpageContentTool = ai.defineTool(
       const MAX_CONTENT_LENGTH = 200000; 
       if (textContent.length > MAX_CONTENT_LENGTH) {
         console.warn(`[fetchWebpageContentTool] Content from ${url} is very long (${textContent.length} chars). Truncating to ${MAX_CONTENT_LENGTH} chars.`);
-        return textContent.substring(0, MAX_CONTENT_LENGTH);
+        textContent = textContent.substring(0, MAX_CONTENT_LENGTH);
       }
       
       return textContent;
@@ -116,3 +115,4 @@ export const fetchWebpageContentTool = ai.defineTool(
     }
   }
 );
+
