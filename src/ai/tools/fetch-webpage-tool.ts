@@ -53,6 +53,9 @@ export const fetchWebpageContentTool = ai.defineTool(
       }
       
       const textContent = await response.text();
+      // CRITICAL LOG: What is textContent right after fetching?
+      console.log(`[fetchWebpageContentTool] Raw textContent from response.text() for URL ${url}: START>>>${textContent}<<<END`);
+      
       console.log(`[fetchWebpageContentTool] Successfully fetched content from ${url}. Initial length: ${textContent.length}`);
       
       const MAX_CONTENT_LENGTH = 20000; 
@@ -82,6 +85,3 @@ export const fetchWebpageContentTool = ai.defineTool(
     }
   }
 );
-
-
-    
