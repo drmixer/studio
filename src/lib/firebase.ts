@@ -12,23 +12,27 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log a warning if essential config values are missing
-// This log will appear in the SERVER terminal during Next.js startup
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error(
-    "CRITICAL FIREBASE CONFIG MISSING (firebase.ts): NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is not defined in your environment variables. " +
-    "This check is happening in src/lib/firebase.ts during app initialization. " +
-    "Ensure your .env.local file is correctly set up in the project root with all necessary Firebase project credentials, " +
-    "and that you have RESTARTED your development server after creating or modifying this file."
-  );
-  console.error("Values seen by firebase.ts at startup:", {
-    apiKey: firebaseConfig.apiKey ? 'Loaded' : 'MISSING!',
-    authDomain: firebaseConfig.authDomain ? 'Loaded' : 'MISSING!',
-    projectId: firebaseConfig.projectId ? 'Loaded' : 'MISSING!',
-    storageBucket: firebaseConfig.storageBucket ? 'Loaded' : 'MISSING!',
-    messagingSenderId: firebaseConfig.messagingSenderId ? 'Loaded' : 'MISSING!',
-    appId: firebaseConfig.appId ? 'Loaded' : 'MISSING!',
-  });
+// Client-side specific log
+if (typeof window !== 'undefined') {
+  console.log("CLIENT_SIDE firebase.ts: Firebase config being used for initializeApp:", firebaseConfig);
+}
+
+// Server-side log (already existed, kept for verification)
+if (typeof window === 'undefined') {
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.error(
+      "CRITICAL FIREBASE CONFIG MISSING (firebase.ts SERVER SIDE): NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is not defined. " +
+      "Check .env.local and RESTART server."
+    );
+    console.error("SERVER_SIDE firebase.ts: Values seen at startup:", {
+      apiKey: firebaseConfig.apiKey ? 'Loaded' : 'MISSING!',
+      authDomain: firebaseConfig.authDomain ? 'Loaded' : 'MISSING!',
+      projectId: firebaseConfig.projectId ? 'Loaded' : 'MISSING!',
+      storageBucket: firebaseConfig.storageBucket ? 'Loaded' : 'MISSING!',
+      messagingSenderId: firebaseConfig.messagingSenderId ? 'Loaded' : 'MISSING!',
+      appId: firebaseConfig.appId ? 'Loaded' : 'MISSING!',
+    });
+  }
 }
 
 
@@ -36,34 +40,41 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-// Check if apps are already initialized to prevent re-initialization error
 if (!getApps().length) {
-  // Only initialize if no apps exist AND if essential config is present
   if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     try {
       app = initializeApp(firebaseConfig);
-      console.log("Firebase app initialized successfully in firebase.ts.");
+      if (typeof window === 'undefined') {
+        console.log("SERVER_SIDE firebase.ts: Firebase app initialized successfully.");
+      }
     } catch (initError: any) {
       console.error("Firebase initialization error in firebase.ts:", initError.message, initError.code, initError.stack);
       console.error("Firebase config used during failed initialization in firebase.ts:", firebaseConfig);
     }
   } else {
-    // If essential config is missing, we can't initialize.
-    // The previous console.error already warned about this.
-    console.error("Firebase app NOT initialized in firebase.ts due to missing critical config.");
+    if (typeof window === 'undefined') {
+      console.error("SERVER_SIDE firebase.ts: Firebase app NOT initialized due to missing critical config.");
+    } else {
+      console.error("CLIENT_SIDE firebase.ts: Firebase app NOT initialized due to missing critical config in browser environment vars:", firebaseConfig);
+    }
   }
 } else {
   app = getApps()[0];
-  console.log("Firebase app already initialized, using existing instance from firebase.ts.");
+   if (typeof window === 'undefined') {
+    console.log("SERVER_SIDE firebase.ts: Firebase app already initialized, using existing instance.");
+  }
 }
 
-// Assign auth and db regardless of new/existing app, but only if app was successfully initialized/retrieved
-// @ts-ignore: app might be undefined if init failed due to missing config
+// @ts-ignore: app might be undefined
 if (app) {
   auth = getAuth(app);
   db = getFirestore(app);
 } else {
-   console.error("Firebase auth and db NOT initialized in firebase.ts because app instance is missing (likely due to config issues).");
+   if (typeof window === 'undefined') {
+    console.error("SERVER_SIDE firebase.ts: Firebase auth and db NOT initialized because app instance is missing.");
+   } else {
+    console.error("CLIENT_SIDE firebase.ts: Firebase auth and db NOT initialized because app instance is missing. Config used:", firebaseConfig);
+   }
   // @ts-ignore
   auth = undefined;
   // @ts-ignore

@@ -70,13 +70,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (docError: any) {
           console.error(`AuthContext: Firestore getDoc error for UID ${fbUser.uid}:`, docError.message, docError.code, docError.stack);
-          console.error("AuthContext: Checking individual Firebase env vars directly...");
-          console.error("NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "MISSING!");
-          console.error("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "MISSING!");
-          console.error("NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING!");
-          console.error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "MISSING!");
-          console.error("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "MISSING!");
-          console.error("NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "MISSING!");
+          console.error("AuthContext: Logging environment variables as seen by client during this error:");
+          console.error("   NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "MISSING!");
+          console.error("   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "MISSING!");
+          console.error("   NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING!");
+          console.error("   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "MISSING!");
+          console.error("   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "MISSING!");
+          console.error("   NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "MISSING!");
           setError(`Failed to load user profile: ${docError.message}. This can be due to network issues, incorrect Firebase setup (check .env.local and restart server), or Firestore rules. Check browser console for details, especially for MISSING Firebase environment variables.`);
           setUser(null); 
         }
@@ -179,4 +179,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
