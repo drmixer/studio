@@ -57,7 +57,10 @@ const suggestProfileEnhancementsFlow = ai.defineFlow(
     outputSchema: SuggestProfileEnhancementsOutputSchema,
   },
   async input => {
+    console.log('[suggestProfileEnhancementsFlow] Input:', JSON.stringify(input));
     const {output} = await prompt(input);
+    console.log('[suggestProfileEnhancementsFlow] Output from prompt:', JSON.stringify(output));
     return output!;
   }
 );
+
